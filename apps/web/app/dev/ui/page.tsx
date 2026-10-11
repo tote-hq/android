@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { CartCard } from '../../../components/CartCard';
 import { ProductGrid } from '../../../components/ProductGrid';
+import { TopBar } from '../../../components/TopBar';
 import { Fixtures } from './Fixtures';
 
 /**
@@ -17,20 +18,35 @@ export default function DevUi() {
   if (process.env.NODE_ENV === 'production') notFound();
 
   return (
-    <main className="shell">
-      <header className="masthead">
-        <div>
-          <h1>fixtures</h1>
-          <p className="tagline">Los bloques que dibuja el chat, con datos fijos.</p>
+    <>
+      {/* The signed-in bar with fixed numbers. The real one needs a Privy
+          session; this is the markup WalletWidget draws once it has one. */}
+      <TopBar>
+        <div className="topbar-wallet" data-testid="fixture-topbar">
+          <button type="button" className="btn topbar-btn">
+            Cargar USDC
+          </button>
+          <span className="topbar-balance">
+            <strong>37.09</strong>
+            <span className="topbar-unit">USDC de prueba</span>
+          </span>
+          <button type="button" className="avatar" aria-label="Abrir tu perfil">
+            FD
+          </button>
         </div>
-      </header>
-      <div className="thread">
-        <Fixtures />
+      </TopBar>
+      <main className="shell">
+        <header className="masthead">
+          <p className="tagline">fixtures: los bloques que dibuja el chat, con datos fijos.</p>
+        </header>
+        <div className="thread">
+          <Fixtures />
 
-        <ProductGrid items={PRODUCTS} note="4 opciones de leche descremada en 1414" />
-        <CartCard cart={CART} handoffUrl="https://diaonline.supermercadosdia.com.ar/checkout/" />
-      </div>
-    </main>
+          <ProductGrid items={PRODUCTS} note="4 opciones de leche descremada en 1414" />
+          <CartCard cart={CART} handoffUrl="https://diaonline.supermercadosdia.com.ar/checkout/" />
+        </div>
+      </main>
+    </>
   );
 }
 

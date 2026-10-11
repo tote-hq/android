@@ -4,8 +4,11 @@ import type { Lang } from './lang.ts';
 export interface ProfileCopy {
   title: string;
   avatarAria: string;
+  tabGeneral: string;
   tabDia: string;
-  tabOrders: string;
+  ordersHeading: string;
+  signOut: string;
+  addressLabel: string;
   lead: string;
   email: string;
   password: string;
@@ -25,8 +28,11 @@ export interface ProfileCopy {
 const ES: ProfileCopy = {
   title: 'Tu perfil',
   avatarAria: 'Abrir tu perfil',
+  tabGeneral: 'General',
   tabDia: 'Mis datos de Día',
-  tabOrders: 'Mis compras',
+  ordersHeading: 'Mis compras',
+  signOut: 'Cerrar sesión',
+  addressLabel: 'Tu dirección',
   lead:
     'Con estos datos compramos en tu cuenta de Día cuando pagás con USDC. Se guardan cifrados y solo se usan para hacer tu pedido.',
   email: 'Email de Día',
@@ -47,8 +53,11 @@ const ES: ProfileCopy = {
 const EN: ProfileCopy = {
   title: 'Your profile',
   avatarAria: 'Open your profile',
+  tabGeneral: 'General',
   tabDia: 'My Día details',
-  tabOrders: 'My purchases',
+  ordersHeading: 'My purchases',
+  signOut: 'Sign out',
+  addressLabel: 'Your address',
   lead:
     'We use these to buy in your Día account when you pay with USDC. They are stored encrypted and used only to place your order.',
   email: 'Día email',

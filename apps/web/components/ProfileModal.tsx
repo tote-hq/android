@@ -1,68 +1,203 @@
 'use client';
 
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
-import { profileCopy, type ProfileCopy } from '../lib/profile-copy.ts';
+import { initials, profileCopy, type ProfileCopy } from '../lib/profile-copy.ts';
 import type { PublicProfile } from '../lib/profile.ts';
+import { shortAddress } from '../lib/use-wallet.ts';
+import { uiCopy } from '../lib/ui-copy.ts';
 import { useLang } from './LangProvider';
 import { Modal } from './Modal';
+import { ModeBadge } from './ModeBadge';
 import { Purchases } from './Purchases';
 
 /**
- * The profile dialog, opened from the avatar in the masthead. Two tabs: the
- * Día details the checkout sandbox buys with (lib/profile.ts, stored
- * encrypted), and what this wallet has bought.
+ * The profile dialog, opened from the avatar in the top bar. Tabs on the
+ * left: General (who you are, what you bought, the way out) and the Día
+ * details the checkout sandbox buys with (lib/profile.ts, stored encrypted).
+ *
+ * General holds what used to be loose in the bar — the address, the mode,
+ * Mis compras and Cerrar sesión — so the bar can carry only the three things
+ * a shopper reaches for mid-basket: load USDC, see the balance, open this.
  *
  * The password box is always empty. The server never sends the password back,
  * only `hasPassword`, so leaving the box empty keeps the saved one and typing
  * replaces it. What is typed lives in this component's state until Guardar,
  * and is cleared as soon as the server has it.
  */
-type Tab = 'dia' | 'orders';
-const TABS: Tab[] = ['dia', 'orders'];
+export type ProfileTab = 'general' | 'dia';
+const TABS: ProfileTab[] = ['general', 'dia'];
 
-export function ProfileModal({ onClose, initialTab = 'dia' }: { onClose: () => void; initialTab?: Tab }) {
+export function ProfileModal({
+  onClose,
+  address,
+  email,
+  onReceive,
+  onLogout,
+  initialTab = 'general',
+}: {
+  onClose: () => void;
+  address: string;
+  email: string | null;
+  /** Closes this dialog and opens the address QR. */
+  onReceive: () => void;
+  onLogout: () => void;
+  initialTab?: ProfileTab;
+}) {
   const copy = profileCopy(useLang());
-  const [tab, setTab] = useState<Tab>(initialTab);
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ dia: null, orders: null });
+  return (
+    <ProfileDialog
+      copy={copy}
+      onClose={onClose}
+      initialTab={initialTab}
+      general={<ProfileGeneral copy={copy} address={address} email={email} onReceive={onReceive} onLogout={onLogout} />}
+      dia={<ProfileLoader copy={copy} />}
+    />
+  );
+}
 
-  // Arrow keys move between tabs, as the WAI-ARIA tabs pattern expects.
+/** The tabbed shell alone, with the panels passed in: what the dev fixtures render. */
+export function ProfileDialog({
+  copy,
+  onClose,
+  general,
+  dia,
+  initialTab = 'general',
+  testId = 'profile-modal',
+}: {
+  copy: ProfileCopy;
+  onClose: () => void;
+  general: ReactNode;
+  dia: ReactNode;
+  initialTab?: ProfileTab;
+  testId?: string;
+}) {
+  const [tab, setTab] = useState<ProfileTab>(initialTab);
+  const tabRefs = useRef<Record<ProfileTab, HTMLButtonElement | null>>({
+    general: null,
+    dia: null,
+  });
+
+  // A vertical tablist: Up and Down move, Home and End jump, per WAI-ARIA.
   const onKey = (e: KeyboardEvent) => {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const next = TABS[(TABS.indexOf(tab) + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length]!;
+    const i = TABS.indexOf(tab);
+    const next =
+      e.key === 'ArrowDown'
+        ? TABS[(i + 1) % TABS.length]
+        : e.key === 'ArrowUp'
+          ? TABS[(i + TABS.length - 1) % TABS.length]
+          : e.key === 'Home'
+            ? TABS[0]
+            : e.key === 'End'
+              ? TABS[TABS.length - 1]
+              : undefined;
+    if (!next) return;
+    e.preventDefault();
     setTab(next);
     tabRefs.current[next]?.focus();
   };
 
-  const strip = (
-    <div className="tabs" role="tablist" aria-label={copy.title} onKeyDown={onKey}>
-      {TABS.map((t) => (
-        <button
-          key={t}
-          ref={(el) => {
-            tabRefs.current[t] = el;
-          }}
-          type="button"
-          role="tab"
-          id={`profile-tab-${t}`}
-          className="tab"
-          aria-selected={tab === t}
-          aria-controls={`profile-panel-${t}`}
-          tabIndex={tab === t ? 0 : -1}
-          onClick={() => setTab(t)}
-        >
-          {t === 'dia' ? copy.tabDia : copy.tabOrders}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
-    <Modal title={copy.title} onClose={onClose} className="modal-orders" testId="profile-modal" head={strip}>
-      <div role="tabpanel" id={`profile-panel-${tab}`} aria-labelledby={`profile-tab-${tab}`}>
-        {tab === 'dia' ? <ProfileLoader copy={copy} /> : <Purchases embedded />}
+    <Modal title={copy.title} onClose={onClose} className="modal-profile" testId={testId}>
+      <div className="profile-layout">
+        <div className="tabs" role="tablist" aria-label={copy.title} aria-orientation="vertical" onKeyDown={onKey}>
+          {TABS.map((t) => (
+            <button
+              key={t}
+              ref={(el) => {
+                tabRefs.current[t] = el;
+              }}
+              type="button"
+              role="tab"
+              id={`profile-tab-${t}`}
+              className="tab"
+              data-testid={`profile-tab-${t}`}
+              aria-selected={tab === t}
+              aria-controls={`profile-panel-${t}`}
+              tabIndex={tab === t ? 0 : -1}
+              onClick={() => setTab(t)}
+            >
+              {t === 'general' ? copy.tabGeneral : copy.tabDia}
+            </button>
+          ))}
+        </div>
+        <div
+          className="profile-panel"
+          role="tabpanel"
+          id={`profile-panel-${tab}`}
+          aria-labelledby={`profile-tab-${tab}`}
+        >
+          {tab === 'general' ? general : dia}
+        </div>
       </div>
     </Modal>
+  );
+}
+
+/** Who this is, what they bought, and the way out. */
+export function ProfileGeneral({
+  copy,
+  address,
+  email,
+  onReceive,
+  onLogout,
+}: {
+  copy: ProfileCopy;
+  address: string;
+  email: string | null;
+  onReceive: () => void;
+  onLogout: () => void;
+}) {
+  const wallet = uiCopy(useLang()).wallet;
+  return (
+    <div className="profile-general" data-testid="profile-general">
+      <div className="profile-who">
+        <span className="avatar avatar-static" aria-hidden="true">
+          {initials(email, address)}
+        </span>
+        <div className="profile-who-text">
+          {email ? <strong className="profile-email">{email}</strong> : null}
+          <span className="wallet-muted profile-addr-row">
+            {copy.addressLabel}:{' '}
+            <button
+              type="button"
+              className="wallet-addr"
+              data-testid="wallet-receive"
+              aria-haspopup="dialog"
+              onClick={onReceive}
+              title={wallet.addressTitle(address)}
+            >
+              {shortAddress(address)}
+            </button>
+          </span>
+          <ModeBadge network="devnet" />
+        </div>
+      </div>
+
+      <section className="profile-orders" aria-labelledby="profile-orders-title">
+        <h3 id="profile-orders-title" className="profile-section-title">
+          {copy.ordersHeading}
+        </h3>
+        <Purchases embedded />
+      </section>
+
+      <div className="modal-actions">
+        <button type="button" className="btn btn-ghost" data-testid="wallet-logout" onClick={onLogout}>
+          <LogoutIcon />
+          {copy.signOut}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg className="wallet-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
   );
 }
 

@@ -5,8 +5,7 @@ import { useState } from 'react';
 import { TurnProgressLine, UserBubble } from '../../../components/Chat';
 import { CheckoutModal } from '../../../components/CheckoutModal';
 import { FaucetConfirm } from '../../../components/FaucetConfirm';
-import { Modal } from '../../../components/Modal';
-import { ProfileForm } from '../../../components/ProfileModal';
+import { ProfileDialog, ProfileForm, ProfileGeneral } from '../../../components/ProfileModal';
 import { ReceiveModal } from '../../../components/ReceiveModal';
 import { initials, profileCopy } from '../../../lib/profile-copy';
 import type { ChatState } from '../../../lib/chat-state';
@@ -145,19 +144,33 @@ export function Fixtures() {
         </button>
       </div>
       {profile ? (
-        <Modal title={profileCopy('es').title} onClose={() => setProfile(false)} className="modal-orders" testId="fixture-profile-modal">
-          <ProfileForm
-            copy={profileCopy('es')}
-            profile={{ email: 'ana.perez@gmail.com', dni: '30123456', postcode: '1425', hasPassword: true, complete: true }}
-            onSave={async (p) => ({
-              email: p.email || null,
-              dni: p.dni || null,
-              postcode: p.postcode || null,
-              hasPassword: true,
-              complete: true,
-            })}
-          />
-        </Modal>
+        <ProfileDialog
+          copy={profileCopy('es')}
+          testId="fixture-profile-modal"
+          onClose={() => setProfile(false)}
+          general={
+            <ProfileGeneral
+              copy={profileCopy('es')}
+              address={DEMO_ADDRESS}
+              email="ana.perez@gmail.com"
+              onReceive={noop}
+              onLogout={noop}
+            />
+          }
+          dia={
+            <ProfileForm
+              copy={profileCopy('es')}
+              profile={{ email: 'ana.perez@gmail.com', dni: '30123456', postcode: '1425', hasPassword: true, complete: true }}
+              onSave={async (p) => ({
+                email: p.email || null,
+                dni: p.dni || null,
+                postcode: p.postcode || null,
+                hasPassword: true,
+                complete: true,
+              })}
+            />
+          }
+        />
       ) : null}
 
       <button

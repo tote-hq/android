@@ -119,7 +119,9 @@ values are redacted from everything Jev reads and everything the run prints.
 `shared_card` row, sent only when the shopper's wallet is on
 `shared_card_member` for that row's network. Manage the list with `npm run
 members` (`list`, `add <address> [note]`, `remove <address>`). A wallet that
-is not on it is refused at the quote, before it locks anything. Same rules as `shopper` — in memory for the run, deleted
+is not on it never reaches this service: it gets the web app's demo run (the
+in-process mock, whatever `config` says), which stops at payment, refunds, and
+hands the shopper the cart link to finish in Día. Same rules as `shopper` — in memory for the run, deleted
 after, `<redacted>` in any repr, and a 422 never echoes either. Nothing in
 the service reads a login or a card from its environment.
 
@@ -312,7 +314,8 @@ chromium`, then `uvicorn server:app` on `$PORT` (default 8080).
    `SANDBOX_TOKEN`, and `npm run config -- set sandbox_mock false`.
 5. Make sure `shared_card` has the card (a `devnet` or `mainnet` row), and
    allow the wallets that may buy with it: `npm run members -- add <solana
-   address> <who>`. Everyone else is refused at the quote.
+   address> <who>`. Everyone else gets the demo run: up to payment, refund,
+   and a "Terminar en Día" link.
 
 ## Run locally
 

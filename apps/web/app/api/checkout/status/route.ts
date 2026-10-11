@@ -9,6 +9,9 @@
  *
  * "Anything else" includes a declined card, a card that was never tried (the
  * job carried no card because `shared_card` has no row) and a run that never reached payment.
+ * A demo run (a wallet not on the card's member list) always lands here: it
+ * stops at payment on purpose, refunds, and the reply carries the cart link
+ * so the shopper finishes in Día.
  * The treasury keeps the USDC only when the operator's card actually paid
  * for the shopper's order; the receipt carries Día's order number.
  *
@@ -40,15 +43,17 @@ function reply(rec: CheckoutRecord, stage: StatusResponse['stage']): Response {
     storeOrderId: rec.storeOrderId ?? null,
     openSig: rec.openSig ?? null,
     closeSig: rec.closeSig ?? null,
-    handoffUrl: stage === 'done' ? rec.handoffUrl : null,
+    handoffUrl: stage === 'done' || stage === 'refunded' ? rec.handoffUrl : null,
     amountDisplay: (rec.amountCents / 100).toFixed(2),
     error: rec.error ?? null,
+    mode: rec.mode ?? null,
   };
   return Response.json(res, { headers: { 'cache-control': 'no-store' } });
 }
 
 /** Why the USDC went back, in words the shopper can act on. Never the store's raw text. */
-function refundReason(status: string, payment: string): string {
+function refundReason(status: string, payment: string, mode?: string): string {
+  if (mode === 'demo') return 'Modo prueba: llegamos hasta el pago sin pagar.';
   if (payment === 'declined') return 'Día rechazó el pago con tarjeta.';
   if (payment === 'not_attempted' && status === 'done') return 'La compra llegó al pago pero no se intentó pagar.';
   if (payment === 'error') return 'No pudimos completar el pago en Día.';
@@ -84,7 +89,7 @@ export async function GET(req: Request): Promise<Response> {
           rec.storeOrderId = job.result?.store_order_id ?? undefined;
         } else {
           finished = 'refund';
-          rec.error = refundReason(job.status, rec.payment);
+          rec.error = refundReason(job.status, rec.payment, rec.mode);
         }
       }
     } catch (err) {

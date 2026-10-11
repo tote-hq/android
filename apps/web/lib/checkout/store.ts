@@ -36,6 +36,8 @@ export interface CheckoutRecord {
   /** The shopper's own cart link at the store. */
   handoffUrl: string | null;
   createdAt: number;
+  /** What the quote decided (lib/shared-card.ts `checkoutMode`). Absent on records from before it existed. */
+  mode?: 'live' | 'demo' | 'mock';
 
   jobId?: string;
   /**

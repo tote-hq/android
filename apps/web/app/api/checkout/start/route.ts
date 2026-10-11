@@ -12,6 +12,11 @@
  * and is dropped — never written to the checkout record, never logged. A
  * password in a cache with a 24 hour expiry is still a password in a cache.
  *
+ * A wallet that may not pay with the shared card gets the demo run instead
+ * (lib/shared-card.ts `checkoutMode`, asked again here because this is the
+ * check that counts): the mock, stopping at payment, so the order refunds and
+ * the modal hands off to the cart link. It needs no Día login.
+ *
  * Idempotent: a second call for an order that already has a job returns the
  * same status rather than starting a second job.
  */
@@ -20,7 +25,8 @@ import { startJob } from '../../../../lib/checkout/sandbox.ts';
 import { readShopper } from '../../../../lib/checkout/shopper.ts';
 import { sandboxFlags } from '../../../../lib/config.ts';
 import { getProfile } from '../../../../lib/profile.ts';
-import { checkoutCardFor } from '../../../../lib/shared-card.ts';
+import { cardAccess, checkoutCardFor, checkoutMode } from '../../../../lib/shared-card.ts';
+import type { SandboxShopper } from '../../../../lib/checkout/sandbox.ts';
 import { checkoutStore } from '../../../../lib/checkout/store.ts';
 import type { StatusResponse } from '../../../../lib/checkout/types.ts';
 import { readLoggedInUser } from '../../../../lib/login-gate.ts';
@@ -46,10 +52,16 @@ export async function POST(req: Request): Promise<Response> {
   if (!rec || rec.buyer !== user.address) return Response.json({ error: 'No encontramos ese pedido.' }, { status: 404 });
 
   if (!rec.jobId) {
+    const flags = await sandboxFlags();
+    // Fails closed: an unreadable member list is a demo, never the card.
+    const mode = checkoutMode(await cardAccess(user.address, flags.mock).catch(() => 'not-member' as const));
+
     // A login typed into the modal wins for this one checkout; otherwise the
-    // saved profile, decrypted here and nowhere else (lib/profile.ts).
-    let shopper = readShopper(body?.dia, body?.address, rec.postalCode);
-    if (!shopper) {
+    // saved profile, decrypted here and nowhere else (lib/profile.ts). The
+    // demo run never logs in, so it asks for neither.
+    let shopper: SandboxShopper | undefined;
+    if (mode !== 'demo') shopper = readShopper(body?.dia, body?.address, rec.postalCode);
+    if (mode !== 'demo' && !shopper) {
       try {
         shopper = readShopper(await getProfile(user.address), body?.address, rec.postalCode);
       } catch (err) {
@@ -57,7 +69,9 @@ export async function POST(req: Request): Promise<Response> {
         return Response.json({ error: 'No pudimos leer tu perfil. Probá de nuevo en un rato.' }, { status: 503 });
       }
     }
-    if (!shopper) return Response.json({ error: 'Completá tu email, contraseña y DNI de Día.' }, { status: 400 });
+    if (mode !== 'demo' && !shopper) {
+      return Response.json({ error: 'Completá tu email, contraseña y DNI de Día.' }, { status: 400 });
+    }
     // A just-confirmed transaction can lag one RPC node behind another.
     let order = await readOrder(orderId);
     for (let i = 0; !order && i < 4; i++) {
@@ -73,30 +87,37 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     rec.openSig = typeof body?.openSig === 'string' ? body.openSig : rec.openSig;
+    rec.mode = mode;
+    const items = rec.lines.map((l) => ({ name: l.name, quantity: l.quantity, sku: l.skuId }));
     try {
-      // The operator's card, from shared_card, and only for a wallet on its
-      // member list (the quote already said so; this is the check that
-      // counts). None means the run stops at the payment step and refunds;
-      // a failed read is the same, not a 500.
-      const card = await checkoutCardFor(user.address).catch((err) => {
-        console.error('[checkout/start] card', err instanceof Error ? err.name : 'read failed');
-        return undefined;
-      });
-      if (card) console.log('[checkout/start] paying with the shared card on', card.network);
-      rec.jobId = await startJob(
-        orderId,
-        rec.lines.map((l) => ({ name: l.name, quantity: l.quantity, sku: l.skuId })),
-        shopper,
-        card && {
-          pan: card.pan,
-          cvv: card.cvv,
-          exp_month: card.exp_month,
-          exp_year: card.exp_year,
-          holder: card.holder,
-          kind: card.kind,
-        },
-        await sandboxFlags(),
-      );
+      if (mode === 'demo') {
+        rec.jobId = await startJob(orderId, items, undefined, undefined, flags, process.env, { demo: true });
+        console.log('[checkout/start] demo run: not a card member');
+      } else {
+        // The operator's card, from shared_card, and only for a wallet on its
+        // member list (the quote already said so; this is the check that
+        // counts). None means the run stops at the payment step and refunds;
+        // a failed read is the same, not a 500.
+        const card = await checkoutCardFor(user.address).catch((err) => {
+          console.error('[checkout/start] card', err instanceof Error ? err.name : 'read failed');
+          return undefined;
+        });
+        if (card) console.log('[checkout/start] paying with the shared card on', card.network);
+        rec.jobId = await startJob(
+          orderId,
+          items,
+          shopper,
+          card && {
+            pan: card.pan,
+            cvv: card.cvv,
+            exp_month: card.exp_month,
+            exp_year: card.exp_year,
+            holder: card.holder,
+            kind: card.kind,
+          },
+          flags,
+        );
+      }
     } catch (err) {
       // No job means nothing will settle it: the status poll refunds.
       // The error is ours (status, network); the request body is never in it.
@@ -119,6 +140,7 @@ export async function POST(req: Request): Promise<Response> {
     handoffUrl: null,
     amountDisplay: (rec.amountCents / 100).toFixed(2),
     error: rec.error ?? null,
+    mode: rec.mode ?? null,
   };
   return Response.json(res);
 }

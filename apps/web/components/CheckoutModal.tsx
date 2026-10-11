@@ -32,11 +32,16 @@ import { useLang } from './LangProvider';
  *   4. done    — Día placed the order: the resolver settled the escrow to the
  *                treasury. Anything else, a declined card included, refunds.
  *
- * The Día login comes from the shopper's saved profile when it is complete:
- * the browser sends nothing and the server decrypts it at start. Otherwise it
- * is typed here, lives in this component's state and the one request to
- * /api/checkout/start (plus /api/profile when "guardar" is ticked), and is
- * never put in chat-store or anywhere else.
+ * The quote says which run this is (`mode`, lib/shared-card.ts):
+ *
+ *   - `live` / `mock`: the sandbox logs into the shopper's Día account, so the
+ *     Día login has to be in their profile first. When it is not, this dialog
+ *     asks for it and saves it (/api/profile, encrypted) *before* anything is
+ *     locked; the start route decrypts it. The password lives in this
+ *     component's state until that one request, and never in chat-store.
+ *   - `demo`: a wallet not on the shared card's member list. No Día login; the
+ *     run stops at payment, the USDC comes back, and the last step hands off
+ *     to the cart link so the shopper finishes in Día.
  *
  * The dialog never decides an outcome. Every stage after `lock` is what the
  * server read from the chain or the sandbox, and the server reads the chain
@@ -90,8 +95,8 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
   // The saved profile (lib/profile.ts), without its password. When it is
   // complete the server decrypts it at /api/checkout/start and nothing is typed.
   const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [typeOwn, setTypeOwn] = useState(false);
-  const [saveToProfile, setSaveToProfile] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [savingDia, setSavingDia] = useState(false);
   const quoting = useRef(false);
   const field = (k: keyof DiaLogin) => (e: ChangeEvent<HTMLInputElement>) => setDia((d) => ({ ...d, [k]: e.target.value }));
 
@@ -115,9 +120,10 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
         });
         const body = await res.json().catch(() => null);
         if (!res.ok) throw new Error(body?.error ?? copy.failed);
-        setQuote(body as QuoteResponse);
+        // Profile first, so a saved login does not flash the form for a frame.
         const p = await fetch('/api/profile', { cache: 'no-store' }).catch(() => null);
         if (p?.ok) setProfile((await p.json().catch(() => null)) as PublicProfile | null);
+        setQuote(body as QuoteResponse);
       } catch (e) {
         setError(e instanceof Error ? e.message : copy.failed);
         quoting.current = false;
@@ -126,8 +132,37 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
   }, [wallet.ready, wallet.address, wallet.accessToken, quote, cart, location, handoffUrl, copy.failed]);
 
   const short = Boolean(quote && balance && BigInt(balance.usdc) < BigInt(quote.amount));
-  const fromProfile = Boolean(profile?.complete) && !typeOwn;
-  const ready = fromProfile || loginReady(dia);
+  const demo = quote?.mode === 'demo' || status?.mode === 'demo';
+  // Only a run that logs into Día needs the login, and it has to be saved first.
+  const needsDia = Boolean(quote) && !demo && (!profile?.complete || editing);
+  const ready = demo || (Boolean(profile?.complete) && !editing);
+
+  // Saved before the lock, not after: a run that would stop at Día's login
+  // page is a lock and a refund for nothing.
+  const saveDia = useCallback(async () => {
+    if (!loginReady(dia)) {
+      setError(copy.diaMissing);
+      return;
+    }
+    setSavingDia(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: dia.email.trim(), password: dia.password, dni: dia.dni.replace(/\D/g, '') }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error ?? copy.failed);
+      setProfile(body as PublicProfile);
+      setDia((d) => ({ ...d, password: '' })); // the server has it now
+      setEditing(false);
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : copy.failed);
+    } finally {
+      setSavingDia(false);
+    }
+  }, [dia, copy.diaMissing, copy.failed]);
 
   const faucet = useCallback(async () => {
     setFunding(true);
@@ -175,24 +210,13 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
       const sig = opened.openSig as string;
       setOpenSig(sig);
       track('escrow_open', { amount: quote.amountDisplay });
-      if (!fromProfile && saveToProfile) {
-        // Best effort: a profile that fails to save must not stop a purchase already paid for.
-        await fetch('/api/profile', {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email: dia.email, password: dia.password, dni: dia.dni }),
-        }).catch(() => null);
-      }
       const res = await fetch('/api/checkout/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           orderId: quote.orderId,
           openSig: sig,
-          // No `dia` means "use my saved profile"; the server decrypts it.
-          ...(fromProfile
-            ? {}
-            : { dia: { email: dia.email.trim(), password: dia.password, dni: dia.dni.replace(/\D/g, '') } }),
+          // No `dia`: the server decrypts the saved profile (a demo needs none).
           address: { street: dia.street, number: dia.number, phone: dia.phone },
         }),
       });
@@ -206,7 +230,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
       setError(e instanceof Error && e.message ? e.message : copy.failed);
       setStep('review');
     }
-  }, [quote, wallet, dia, ready, fromProfile, saveToProfile, copy.failed, copy.diaMissing]);
+  }, [quote, wallet, dia, ready, copy.failed, copy.diaMissing]);
 
   // Poll while the sandbox shops.
   useEffect(() => {
@@ -338,54 +362,65 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
               ) : null}
               <p className="ck-note">{copy.escrowNote}</p>
 
-              {fromProfile ? (
+              {demo ? (
+                <p className="ck-note ck-demo" data-testid="checkout-demo-note">
+                  {copy.demoNote}
+                </p>
+              ) : !needsDia ? (
                 <div className="ck-delivery" data-testid="checkout-dia-profile">
                   <h3 className="ck-title">{copy.diaTitle}</h3>
                   <p className="ck-note">{copy.profileUsing(profile?.email ?? '')}</p>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTypeOwn(true)} disabled={step === 'locking'}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(true)} disabled={step === 'locking'}>
                     {copy.profileOther}
                   </button>
                 </div>
               ) : (
-              <fieldset className="ck-delivery" disabled={step === 'locking'} data-testid="checkout-dia">
-                <h3 className="ck-title">{copy.diaTitle}</h3>
-                <p className="ck-note">{copy.diaLead}</p>
-                <div className="ck-form">
-                  <label>
-                    {copy.emailLabel}
-                    <input className="ck-input" type="email" autoComplete="off" value={dia.email} onChange={field('email')} />
-                  </label>
-                  <label>
-                    {copy.passwordLabel}
-                    <input className="ck-input" type="password" autoComplete="off" value={dia.password} onChange={field('password')} />
-                  </label>
-                  <label>
-                    {copy.dniLabel}
-                    <input className="ck-input" inputMode="numeric" autoComplete="off" value={dia.dni} onChange={field('dni')} />
-                  </label>
-                </div>
-                <details className="ck-more">
-                  <summary>{copy.addressMore}</summary>
+                <fieldset className="ck-delivery" disabled={savingDia} data-testid="checkout-dia">
+                  <h3 className="ck-title">{copy.diaTitle}</h3>
+                  <p className="ck-note">{copy.diaLead}</p>
                   <div className="ck-form">
                     <label>
-                      {copy.streetLabel}
-                      <input className="ck-input" autoComplete="address-line1" value={dia.street} onChange={field('street')} />
+                      {copy.emailLabel}
+                      <input className="ck-input" type="email" autoComplete="off" value={dia.email} onChange={field('email')} />
                     </label>
                     <label>
-                      {copy.numberLabel}
-                      <input className="ck-input" inputMode="numeric" value={dia.number} onChange={field('number')} />
+                      {copy.passwordLabel}
+                      <input className="ck-input" type="password" autoComplete="new-password" value={dia.password} onChange={field('password')} />
                     </label>
                     <label>
-                      {copy.phoneLabel}
-                      <input className="ck-input" type="tel" autoComplete="tel" value={dia.phone} onChange={field('phone')} />
+                      {copy.dniLabel}
+                      <input className="ck-input" inputMode="numeric" autoComplete="off" value={dia.dni} onChange={field('dni')} />
                     </label>
                   </div>
-                </details>
-                <label className="ck-check">
-                  <input type="checkbox" checked={saveToProfile} onChange={(e) => setSaveToProfile(e.target.checked)} />
-                  {copy.saveToProfile}
-                </label>
-              </fieldset>
+                  <details className="ck-more">
+                    <summary>{copy.addressMore}</summary>
+                    <div className="ck-form">
+                      <label>
+                        {copy.streetLabel}
+                        <input className="ck-input" autoComplete="address-line1" value={dia.street} onChange={field('street')} />
+                      </label>
+                      <label>
+                        {copy.numberLabel}
+                        <input className="ck-input" inputMode="numeric" value={dia.number} onChange={field('number')} />
+                      </label>
+                      <label>
+                        {copy.phoneLabel}
+                        <input className="ck-input" type="tel" autoComplete="tel" value={dia.phone} onChange={field('phone')} />
+                      </label>
+                    </div>
+                  </details>
+                  <div className="modal-actions">
+                    <button
+                      type="button"
+                      className="btn"
+                      data-testid="checkout-dia-save"
+                      onClick={() => void saveDia()}
+                      disabled={savingDia || !loginReady(dia)}
+                    >
+                      {savingDia ? copy.diaSaving : copy.diaSaveCta}
+                    </button>
+                  </div>
+                </fieldset>
               )}
 
               {short ? (
@@ -397,17 +432,19 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
                 </>
               ) : null}
 
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  data-testid="checkout-lock"
-                  onClick={() => void lock()}
-                  disabled={step === 'locking' || short || !balance || !ready}
-                >
-                  {step === 'locking' ? copy.locking : copy.lockCta(quote.amountDisplay)}
-                </button>
-              </div>
+              {needsDia ? null : (
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    data-testid="checkout-lock"
+                    onClick={() => void lock()}
+                    disabled={step === 'locking' || short || !balance || !ready}
+                  >
+                    {step === 'locking' ? copy.locking : copy.lockCta(quote.amountDisplay)}
+                  </button>
+                </div>
+              )}
             </div>
           ) : null}
 
@@ -415,9 +452,11 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
             <div className="ck-pay" data-testid="checkout-shopping-step">
               <p className="ck-ok">{copy.lockedNote}</p>
               <p className="ck-waiting" role="status" data-testid="checkout-phase">
-                {copy.phases[status?.phase ?? 'queued'] ?? copy.phases.queued}
+                {demo && status?.phase === 'payment'
+                  ? copy.demoPayment
+                  : (copy.phases[status?.phase ?? 'queued'] ?? copy.phases.queued)}
               </p>
-              <p className="ck-note">{copy.shoppingNote}</p>
+              <p className="ck-note">{demo ? copy.demoShoppingNote : copy.shoppingNote}</p>
             </div>
           ) : null}
 
@@ -431,8 +470,23 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
 
           {step === 'refunded' ? (
             <div className="ck-pay" data-testid="checkout-refunded-step">
-              <h3 className="pay-warn">{copy.refundedTitle}</h3>
-              <p className="ck-lead">{status?.payment === 'declined' ? copy.declinedLead : copy.refundedLead}</p>
+              <h3 className={demo ? 'ck-ok' : 'pay-warn'}>{demo ? copy.demoDoneTitle : copy.refundedTitle}</h3>
+              <p className="ck-lead">
+                {demo ? copy.demoDoneLead : status?.payment === 'declined' ? copy.declinedLead : copy.refundedLead}
+              </p>
+              {/* The cart the shopper built in the chat, at the store: the way
+                  to finish when we could not, and the whole point of a demo. */}
+              {status?.handoffUrl ? (
+                <a
+                  className="btn"
+                  href={status.handoffUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="checkout-handoff"
+                >
+                  {copy.handoffCta} ↗
+                </a>
+              ) : null}
             </div>
           ) : null}
 

@@ -82,6 +82,13 @@ interface ShopValue {
   ack: () => void;
   historyOpen: boolean;
   setHistoryOpen: (open: boolean) => void;
+  /**
+   * Bumped by a Pagar outside the thread — the cart rail's. The payment
+   * dialog lives in Chat, which watches this and opens it over the current
+   * basket, the same way the card's own Pagar does.
+   */
+  payRequest: number;
+  requestPay: () => void;
 }
 
 const ShopContext = createContext<ShopValue | null>(null);
@@ -97,6 +104,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [readOnly, setReadOnly] = useState(false);
   const [request, setRequest] = useState<ChatRequest | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [payRequest, setPayRequest] = useState(0);
+  const requestPay = useCallback(() => setPayRequest((n) => n + 1), []);
 
   // After hydration, never during render: reading storage while rendering
   // makes the server's HTML and the browser's first paint disagree, and React
@@ -219,10 +228,13 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       ack,
       historyOpen,
       setHistoryOpen,
+      payRequest,
+      requestPay,
     }),
     [
       chats, activeChatId, cart, handoffUrl, orderState, receipt, readOnly,
       publish, openChat, newChat, forgetChat, settle, request, ack, historyOpen,
+      payRequest, requestPay,
     ],
   );
 

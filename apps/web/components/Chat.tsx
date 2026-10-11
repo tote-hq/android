@@ -132,6 +132,18 @@ function ChatCore({
     publish({ state, sessionId: currentSessionId() });
   }, [publish, state, currentSessionId]);
 
+  // The cart rail's Pagar (ShopProvider.requestPay): the same dialog, over the
+  // basket as it is now. Keyed on the counter so a re-render does not reopen it.
+  const payRequest = shop?.payRequest ?? 0;
+  const seenPay = useRef(payRequest);
+  useEffect(() => {
+    if (payRequest === seenPay.current) return;
+    seenPay.current = payRequest;
+    if (!shop?.canOrder || !shop.cart) return;
+    track('payment_start', { flow: 'rail' });
+    setPaying({ cart: shop.cart, handoffUrl: shop.handoffUrl ?? undefined });
+  }, [payRequest, shop]);
+
   // The provider asks, this answers. Both halves of a restore land together —
   // transcript and session id — which is the whole point of CLAUDE.md §4.
   const request = shop?.request;
@@ -694,7 +706,7 @@ function ChatCore({
  * carried through storage untouched. Nothing here is recomputed from a number
  * now: a receipt that re-prices itself when a rate moves is not a receipt.
  */
-function ReceiptCard({ receipt }: { receipt: Receipt }) {
+export function ReceiptCard({ receipt }: { receipt: Receipt }) {
   const lang = useLang();
   const copy = uiCopy(lang).chat;
   // The order's own page when the store named it, the orders list when it did

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { TurnProgressLine, UserBubble } from '../../../components/Chat';
+import { ReceiptCard, TurnProgressLine, UserBubble } from '../../../components/Chat';
 import { CheckoutModal } from '../../../components/CheckoutModal';
 import { FaucetConfirm } from '../../../components/FaucetConfirm';
 import { ProfileDialog, ProfileForm, ProfileGeneral } from '../../../components/ProfileModal';
@@ -17,6 +17,20 @@ import { ENOUGH_UNITS } from '../../../lib/faucet-policy';
  */
 
 const noop = () => {};
+
+const RECEIPT = {
+  orderId: 'f996d33fda09',
+  retailer: 'dia',
+  paidDisplay: '19.74 USDC de prueba',
+  paidAt: Date.UTC(2026, 9, 11, 6, 1),
+  lines: [
+    { name: 'Pan para Hamburguesa Lactal 4 Ud.', quantity: 1, lineTotal: '$ 1.750,00' },
+    { name: 'Hamburguesas de Carne Clásicas Dia x 4 Ud.', quantity: 1, lineTotal: '$ 7.750,00' },
+    { name: 'Queso Cheddar Fetas Dia 144 Gr.', quantity: 1, lineTotal: '$ 2.290,00' },
+    { name: 'Tomate Redondo x Kg.', quantity: 1, lineTotal: '$ 5.490,00' },
+  ],
+  total: '$ 26.260,00',
+};
 
 const DELIVERED = { kind: 'user' as const, id: 'd1', text: 'galletas de avena para 4' };
 
@@ -87,6 +101,9 @@ export function Fixtures() {
     <>
       {/* Reaching an undelivered message for real costs three free turns and
           a logged-out browser, so the states live here instead. */}
+      {/* A paid chat's receipt, in a thread long enough to scroll: the case
+          where it used to shrink to its heading. */}
+      <ReceiptCard receipt={RECEIPT} />
       <UserBubble block={DELIVERED} canRetry={false} onRetry={noop} />
       <UserBubble block={FAILED_LOGIN} canRetry onRetry={noop} />
       <UserBubble block={FAILED_OLD} canRetry={false} onRetry={noop} />

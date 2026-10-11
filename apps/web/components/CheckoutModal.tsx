@@ -490,6 +490,13 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
               <p className="ck-lead">
                 {demo ? copy.demoRefundedLead : status?.payment === 'declined' ? copy.declinedLead : copy.refundedLead}
               </p>
+              {/* The cause, from lib/checkout/failure.ts: which step it stopped
+                  at, or what Día asked for. Never the store's raw text. */}
+              {status?.error ? (
+                <p className="ck-note" data-testid="checkout-cause">
+                  {copy.causeLabel} {status.error}
+                </p>
+              ) : null}
               {/* The cart the shopper built in the chat, at the store: the way
                   to finish when we could not, and the whole point of a demo. */}
               {status?.handoffUrl ? (

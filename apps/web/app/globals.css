@@ -582,6 +582,10 @@ a:hover { color: var(--chg-arcilla); }
 .receipt {
   padding: 12px 14px;
   gap: 8px;
+  /* `.card` hides overflow, and in the thread's scrolling flex column a flex
+     item that hides overflow may shrink to nothing: the receipt showed its
+     heading and was cut below it. The thread scrolls; nothing in it shrinks. */
+  flex-shrink: 0;
 }
 .receipt-head {
   display: flex;
@@ -1954,6 +1958,12 @@ a:hover { color: var(--chg-arcilla); }
     flex-shrink: 0;
     border-top: 1px solid var(--border);
     padding-top: 8px;
+  }
+
+  /* Pagar under the basket: full width, the one sunflower CTA in the rail. */
+  .rail-cart-pay {
+    width: 100%;
+    margin-top: 10px;
   }
 
   .rail-cart-warn {

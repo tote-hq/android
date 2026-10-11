@@ -23,6 +23,7 @@
 import { createHash } from 'node:crypto';
 
 import { readOrder, refundOrder, settleOrder } from '../../../../lib/checkout/escrow-server.ts';
+import { refundReason } from '../../../../lib/checkout/failure.ts';
 import { readJob } from '../../../../lib/checkout/sandbox.ts';
 import { checkoutStore, type CheckoutRecord } from '../../../../lib/checkout/store.ts';
 import type { StatusResponse } from '../../../../lib/checkout/types.ts';
@@ -51,15 +52,6 @@ function reply(rec: CheckoutRecord, stage: StatusResponse['stage']): Response {
     mode: rec.mode ?? null,
   };
   return Response.json(res, { headers: { 'cache-control': 'no-store' } });
-}
-
-/** Why the USDC went back, in words the shopper can act on. Never the store's raw text. */
-function refundReason(status: string, payment: string, mode?: string): string {
-  if (mode === 'demo') return 'Modo prueba: llegamos hasta el pago sin pagar.';
-  if (payment === 'declined') return 'Día rechazó el pago con tarjeta.';
-  if (payment === 'not_attempted' && status === 'done') return 'La compra llegó al pago pero no se intentó pagar.';
-  if (payment === 'error') return 'No pudimos completar el pago en Día.';
-  return 'La compra no llegó al pago en Día.';
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -95,7 +87,13 @@ export async function GET(req: Request): Promise<Response> {
           rec.storeOrderId = job.result?.store_order_id ?? undefined;
         } else {
           finished = 'refund';
-          rec.error = refundReason(job.status, rec.payment, rec.mode);
+          rec.error = refundReason({
+            status: job.status,
+            payment: rec.payment,
+            mode: rec.mode,
+            detail: job.result?.payment_detail,
+            phase: job.phase,
+          });
         }
       }
     } catch (err) {

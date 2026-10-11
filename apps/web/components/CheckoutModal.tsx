@@ -9,6 +9,7 @@ import type { Receipt } from '../lib/chat-store.ts';
 import { escrowCopy } from '../lib/checkout/copy.ts';
 import type { QuoteResponse, StatusResponse } from '../lib/checkout/types.ts';
 import type { PublicProfile } from '../lib/profile.ts';
+import { fetchAs } from '../lib/fetch-as.ts';
 import { ensureUserCookie } from '../lib/session-login';
 import { explorerTx } from '../lib/solana.ts';
 import { useBalances } from '../lib/use-balances.ts';
@@ -114,7 +115,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
       try {
         const ok = await ensureUserCookie(wallet.address!, wallet.accessToken);
         if (!ok) throw new Error(copy.failed);
-        const res = await fetch('/api/checkout/quote', {
+        const res = await fetchAs({ address: wallet.address, sign: wallet.accessToken }, '/api/checkout/quote', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ cart, handoffUrl, location }),
@@ -122,7 +123,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
         const body = await res.json().catch(() => null);
         if (!res.ok) throw new Error(body?.error ?? copy.failed);
         // Profile first, so a saved login does not flash the form for a frame.
-        const p = await fetch('/api/profile', { cache: 'no-store' }).catch(() => null);
+        const p = await fetchAs({ address: wallet.address, sign: wallet.accessToken }, '/api/profile', { cache: 'no-store' }).catch(() => null);
         if (p?.ok) setProfile((await p.json().catch(() => null)) as PublicProfile | null);
         setQuote(body as QuoteResponse);
       } catch (e) {
@@ -148,7 +149,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
     setSavingDia(true);
     setError(null);
     try {
-      const res = await fetch('/api/profile', {
+      const res = await fetchAs({ address: wallet.address, sign: wallet.accessToken }, '/api/profile', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ email: dia.email.trim(), password: dia.password, dni: dia.dni.replace(/\D/g, '') }),
@@ -169,7 +170,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
     setFunding(true);
     setError(null);
     try {
-      const res = await fetch('/api/faucet', { method: 'POST' });
+      const res = await fetchAs({ address: wallet.address, sign: wallet.accessToken }, '/api/faucet', { method: 'POST' });
       const body = await res.json().catch(() => null);
       if (!res.ok && res.status !== 429) throw new Error(body?.error ?? copy.failed);
       if (res.status === 429 && body?.note) setError(body.note);

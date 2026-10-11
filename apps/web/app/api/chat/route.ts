@@ -7,7 +7,8 @@ import { langFrom } from '@/lib/lang';
 import { withSession } from '@/lib/mcp/session';
 import { encodeEvent, HEARTBEAT, SSE_HEADERS, type ChatRequest, type UiEvent } from '@/lib/protocol';
 import { requireHuman } from '@/lib/human-gate';
-import { readLoggedInUser, requireLoginOrFreeTurn } from '@/lib/login-gate';
+import { requireLoginOrFreeTurn } from '@/lib/login-gate';
+import { readSessionUser } from '@/lib/session-match';
 import { presetLocationFromProfile } from '@/lib/profile-location';
 
 /**
@@ -72,7 +73,11 @@ export async function POST(req: Request): Promise<Response> {
   // quota decision the place identity is established. Verifying the cookie is
   // an HMAC and no I/O, so the second read costs nothing worth saving.
   // A guest is `null` here, and `archiveChat` writes nothing for a guest.
-  const user = await readLoggedInUser(req);
+  // A cookie for another wallet than the one this browser is now signed in
+  // as (lib/wallet-header.ts) is treated as no one: nothing is archived under
+  // it and its profile postcode is not used. The quota gate above already ran
+  // on the cookie as it is.
+  const user = await readSessionUser(req);
   const owner = user.ok ? user.address : null;
   const network = asNetwork(body.network) ?? DEFAULT_NETWORK;
   // Which language the agent answers in, and nothing else. This route's own

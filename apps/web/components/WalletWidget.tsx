@@ -8,6 +8,8 @@ import { usdcAmount } from '../lib/faucet-copy.ts';
 import { modeCopy, previewMasthead } from '../lib/mode-copy.ts';
 import { initials, profileCopy } from '../lib/profile-copy.ts';
 import { ensureUserCookie, forgetUserCookie } from '../lib/session-login.ts';
+import { fetchAs } from '../lib/fetch-as.ts';
+import { wipeLocalAccount } from '../lib/local-account.ts';
 import { useBalances } from '../lib/use-balances.ts';
 import { useWallet } from '../lib/use-wallet.ts';
 import { uiCopy } from '../lib/ui-copy.ts';
@@ -73,11 +75,19 @@ export function WalletWidget() {
     };
   }, [address, wallet.accessToken]);
 
+  // Signing out leaves nothing of this account in the browser: the session
+  // cookie, the stored chats (history, carts, receipts, postcode), Privy's
+  // session, and — by reloading — everything held in memory.
   function signOut() {
     track('logout');
     setShowingProfile(false);
     forgetUserCookie();
-    void fetch('/api/session/logout', { method: 'POST', credentials: 'same-origin' }).finally(() => wallet.logout());
+    wipeLocalAccount();
+    void fetch('/api/session/logout', { method: 'POST', credentials: 'same-origin' })
+      .catch(() => null)
+      .then(() => wallet.logout())
+      .catch(() => null)
+      .finally(() => window.location.reload());
   }
 
   async function fund() {
@@ -87,7 +97,7 @@ export function WalletWidget() {
     setNote(null);
     try {
       await ensureUserCookie(address, wallet.accessToken);
-      const res = await fetch('/api/faucet', { method: 'POST' });
+      const res = await fetchAs({ address, sign: wallet.accessToken }, '/api/faucet', { method: 'POST' });
       const json = await res.json().catch(() => ({}));
       // 429 carries a real answer ("you already have enough"), not a failure.
       if (!res.ok && res.status !== 429) throw new Error(json.message ?? json.error ?? `faucet failed (${res.status})`);

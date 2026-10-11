@@ -25,7 +25,7 @@ import { cardAccess, checkoutMode } from '../../../../lib/shared-card.ts';
 import type { QuoteResponse } from '../../../../lib/checkout/types.ts';
 import { DEPLOYMENTS } from '../../../../lib/deployments.ts';
 import { bytesToHex } from '../../../../lib/escrow.ts';
-import { readLoggedInUser } from '../../../../lib/login-gate.ts';
+import { readSessionUser, sessionMismatchResponse } from '../../../../lib/session-match.ts';
 import { basketHash, DEFAULT_TIMEOUT_SECS, newOrderId } from '../../../../lib/order.ts';
 import { usdcToBase } from '../../../../lib/solana.ts';
 
@@ -48,7 +48,8 @@ function isCart(c: unknown): c is Cart {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const user = await readLoggedInUser(req);
+  const user = await readSessionUser(req);
+  if (!user.ok && user.mismatch) return sessionMismatchResponse();
   if (!user.ok) return Response.json({ error: 'Iniciá sesión para pagar.' }, { status: 401 });
 
   const body = (await req.json().catch(() => null)) as { cart?: unknown; handoffUrl?: unknown; location?: unknown } | null;

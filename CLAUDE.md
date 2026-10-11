@@ -188,6 +188,20 @@ restored blocks do not collide with new ones. A chat the server can no longer
 continue comes back **read-only** rather than pretending, which is what
 `isResumable` is for. Do not re-add the id to storage on its own.
 
+**Stored chats belong to one account.** They carry carts, receipts and the
+postcode, under keys that used to belong to no one, so signing out and in as
+another Privy account showed the previous account's history. `changuito:owner`
+records whose they are (`lib/local-account.ts`); ShopProvider lists nothing
+until it knows, and wipes every `changuito:` key — local and session storage —
+when another wallet signs in or the owner signs out, reloading if they were
+already on screen. Logout wipes and reloads too. A guest's chats are adopted by
+whoever signs in, because a basket started as a guest and paid after signing
+in is one conversation. On the server side, requests that read one account's
+data send `x-chg-wallet` and are refused with 409 `session_mismatch` when the
+`chg_user` cookie is another wallet's (`lib/session-match.ts`) — the cookie
+lags a Privy switch by a moment, and in that moment it answered with the
+previous account's Día email, DNI, postcode and orders.
+
 **Three stores hold a conversation, and they are not redundant.** The `kv`
 table (`turn-store.ts`) is the working store the hop loop reads up to twelve
 times a turn, at a one hour expiry. localStorage (`chat-store.ts`) is what the

@@ -10,7 +10,7 @@ import { ordersOf } from '../../../../lib/checkout/escrow-server.ts';
 import type { OrderLine } from '../../../../lib/checkout/types.ts';
 import { orderPda, hexToBytes } from '../../../../lib/escrow.ts';
 import { DEPLOYMENTS } from '../../../../lib/deployments.ts';
-import { readLoggedInUser } from '../../../../lib/login-gate.ts';
+import { readSessionUser, sessionMismatchResponse } from '../../../../lib/session-match.ts';
 import { explorerAccount } from '../../../../lib/solana.ts';
 import { formatUsdc } from '../../../../lib/usdc.ts';
 import { address } from '@solana/kit';
@@ -19,7 +19,8 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request): Promise<Response> {
-  const user = await readLoggedInUser(req);
+  const user = await readSessionUser(req);
+  if (!user.ok && user.mismatch) return sessionMismatchResponse();
   if (!user.ok) return Response.json({ error: 'Iniciá sesión.' }, { status: 401 });
   try {
     const program = address(DEPLOYMENTS.devnet.programId);

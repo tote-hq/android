@@ -9,18 +9,19 @@ import { modeCopy, previewMasthead } from '../lib/mode-copy.ts';
 import { initials, profileCopy } from '../lib/profile-copy.ts';
 import { ensureUserCookie, forgetUserCookie } from '../lib/session-login.ts';
 import { useBalances } from '../lib/use-balances.ts';
-import { shortAddress, useWallet } from '../lib/use-wallet.ts';
+import { useWallet } from '../lib/use-wallet.ts';
 import { uiCopy } from '../lib/ui-copy.ts';
 import { useLang } from './LangProvider';
 import { FaucetConfirm } from './FaucetConfirm';
 import { ModeBadge } from './ModeBadge';
-import { OrdersModal } from './OrdersModal';
 import { ProfileModal } from './ProfileModal';
 import { ReceiveModal } from './ReceiveModal';
 
 /**
- * The balance widget in the masthead: the Privy wallet's devnet USDC, the
- * faucet, what was bought, and the way out.
+ * The wallet's half of the top bar, read right to left: the profile avatar,
+ * the Privy wallet's devnet USDC balance, and Cargar USDC. Everything else
+ * that used to sit in the card here — the address, the mode, Mis compras and
+ * the way out — lives in the profile's General tab (ProfileModal.tsx).
  *
  * Privy lives behind `useWallet()` (lib/use-wallet.ts), so this renders the
  * same tree whether or not the build has an app id; `enabled: false` is the
@@ -39,11 +40,17 @@ export function WalletWidget() {
   const [confirming, setConfirming] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [receiving, setReceiving] = useState(false);
-  const [showingOrders, setShowingOrders] = useState(false);
   const [showingProfile, setShowingProfile] = useState(false);
   const profileButton = useRef<HTMLButtonElement>(null);
   const fundButton = useRef<HTMLButtonElement>(null);
-  const receiveButton = useRef<HTMLButtonElement>(null);
+
+  // The faucet's answer floats under the bar rather than growing it, so it
+  // has to go away by itself.
+  useEffect(() => {
+    if (!note) return;
+    const t = setTimeout(() => setNote(null), 6000);
+    return () => clearTimeout(t);
+  }, [note]);
 
   const wasAuthed = useRef(wallet.authenticated);
   useEffect(() => {
@@ -65,6 +72,13 @@ export function WalletWidget() {
       cancelled = true;
     };
   }, [address, wallet.accessToken]);
+
+  function signOut() {
+    track('logout');
+    setShowingProfile(false);
+    forgetUserCookie();
+    void fetch('/api/session/logout', { method: 'POST', credentials: 'same-origin' }).finally(() => wallet.logout());
+  }
 
   async function fund() {
     if (!address) return;
@@ -90,19 +104,23 @@ export function WalletWidget() {
 
   if (!wallet.enabled) {
     return (
-      <div className="wallet wallet-off" title="Falta NEXT_PUBLIC_PRIVY_APP_ID. Ver DEPLOY.md">
-        <span className="wallet-label">{copy.label}</span>
-        <span className="wallet-muted">{copy.unconfigured}</span>
+      <div className="topbar-wallet wallet-off" title="Falta NEXT_PUBLIC_PRIVY_APP_ID. Ver DEPLOY.md">
+        <span className="topbar-muted">{copy.unconfigured}</span>
       </div>
     );
   }
 
   if (!address) {
     return (
-      <div className="wallet">
+      <div className="topbar-wallet">
         <ModeBadge network="devnet" />
-        <span className="wallet-muted">{masthead.hint}</span>
-        <button type="button" className="btn" onClick={() => trackLoginStart(wallet.login)} disabled={!wallet.ready}>
+        <span className="topbar-muted topbar-hint">{masthead.hint}</span>
+        <button
+          type="button"
+          className="btn topbar-btn"
+          onClick={() => trackLoginStart(wallet.login)}
+          disabled={!wallet.ready}
+        >
           {masthead.action}
         </button>
       </div>
@@ -110,92 +128,55 @@ export function WalletWidget() {
   }
 
   return (
-    <div className="wallet">
-      <div className="wallet-head">
-        <span className="wallet-who">
-          <button
-            ref={profileButton}
-            type="button"
-            className="avatar"
-            data-testid="wallet-profile"
-            aria-label={profileCopy(lang).avatarAria}
-            aria-haspopup="dialog"
-            onClick={() => setShowingProfile(true)}
-          >
-            {initials(wallet.email, address)}
-          </button>
-          <span className="wallet-label">{wallet.email ?? copy.label}</span>
-        </span>
-        <button
-          ref={receiveButton}
-          type="button"
-          className="wallet-addr"
-          data-testid="wallet-receive"
-          aria-haspopup="dialog"
-          onClick={() => setReceiving(true)}
-          title={copy.addressTitle(address)}
-        >
-          {shortAddress(address)}
-        </button>
-      </div>
+    <div className="topbar-wallet">
+      <button
+        ref={fundButton}
+        type="button"
+        className="btn topbar-btn"
+        data-testid="wallet-fund"
+        aria-haspopup="dialog"
+        onClick={() => {
+          setNote(null);
+          setConfirming(true);
+        }}
+        disabled={funding || confirming}
+      >
+        {funding ? copy.funding : copy.fundCta}
+      </button>
 
-      <div className="wallet-balance">
+      <span className="topbar-balance" data-testid="wallet-balance">
         <strong>{data ? data.usdcDisplay : '-'}</strong>
-        <span className="wallet-unit">{mode.balanceUnit}</span>
-        {loading && <span className="wallet-muted">{copy.refreshing}</span>}
-      </div>
+        <span className="topbar-unit">{mode.balanceUnit}</span>
+        {loading ? <span className="sr-only">{copy.refreshing}</span> : null}
+      </span>
 
-      <ModeBadge network="devnet" />
+      <button
+        ref={profileButton}
+        type="button"
+        className="avatar"
+        data-testid="wallet-profile"
+        aria-label={profileCopy(lang).avatarAria}
+        aria-haspopup="dialog"
+        onClick={() => setShowingProfile(true)}
+      >
+        {initials(wallet.email, address)}
+      </button>
 
-      {error && <p className="wallet-error">{error}</p>}
-      {note && <p className="wallet-note">{note}</p>}
-
-      <div className="wallet-actions">
-        <button
-          ref={fundButton}
-          type="button"
-          className="btn btn-sm"
-          data-testid="wallet-fund"
-          aria-haspopup="dialog"
-          onClick={() => {
-            setNote(null);
-            setConfirming(true);
-          }}
-          disabled={funding || confirming}
-        >
-          {funding ? copy.funding : copy.fundCta}
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost wallet-icon-btn"
-          data-testid="wallet-orders"
-          aria-label={copy.purchasesAria}
-          aria-haspopup="dialog"
-          onClick={() => setShowingOrders(true)}
-        >
-          <BagIcon />
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost wallet-icon-btn"
-          data-testid="wallet-logout"
-          aria-label={copy.signOutAria}
-          onClick={() => {
-            track('logout');
-            forgetUserCookie();
-            void fetch('/api/session/logout', { method: 'POST', credentials: 'same-origin' }).finally(() =>
-              wallet.logout(),
-            );
-          }}
-        >
-          <LogoutIcon />
-        </button>
-      </div>
-
-      {showingOrders ? <OrdersModal onClose={() => setShowingOrders(false)} /> : null}
+      {error || note ? (
+        <p className={error ? 'topbar-toast is-error' : 'topbar-toast'} role="status">
+          {error ?? note}
+        </p>
+      ) : null}
 
       {showingProfile ? (
         <ProfileModal
+          address={address}
+          email={wallet.email ?? null}
+          onLogout={signOut}
+          onReceive={() => {
+            setShowingProfile(false);
+            setReceiving(true);
+          }}
           onClose={() => {
             setShowingProfile(false);
             requestAnimationFrame(() => profileButton.current?.focus());
@@ -208,7 +189,7 @@ export function WalletWidget() {
           address={address}
           onClose={() => {
             setReceiving(false);
-            requestAnimationFrame(() => receiveButton.current?.focus());
+            requestAnimationFrame(() => profileButton.current?.focus());
           }}
         />
       ) : null}
@@ -227,24 +208,5 @@ export function WalletWidget() {
         />
       ) : null}
     </div>
-  );
-}
-
-function BagIcon() {
-  return (
-    <svg className="wallet-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M4 8h16l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H6.7a1.5 1.5 0 0 1-1.5-1.3Z" />
-      <path d="M8.5 8V6.2a3.5 3.5 0 0 1 7 0V8" />
-    </svg>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg className="wallet-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
   );
 }

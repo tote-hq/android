@@ -16,8 +16,8 @@ import { useLang } from './LangProvider';
  * `GET /api/checkout/orders`. The chain is the record, so it is the same list
  * on every device and survives a cleared browser.
  *
- * It is `OrdersModal`'s body, which is what `embedded` is for: inside a
- * dialog the heading and the way back are the dialog's.
+ * It is the profile's General tab body, which is what `embedded` is for:
+ * there the heading and the way back are the dialog's.
  */
 const STATUS: Record<Lang, Record<OrderLine['status'], string>> = {
   es: { open: 'En curso', settled: 'Completada', refunded: 'Devuelta' },

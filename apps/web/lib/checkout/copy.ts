@@ -35,6 +35,8 @@ export interface EscrowCopy {
   demoDoneTitle: string;
   demoDoneLead: string;
   handoffCta: string;
+  /** The receipt's amount for a finished demo: nothing was charged. */
+  demoPaid: (amount: string) => string;
   postalNote: (profile: string, chat: string) => string;
   escrowNote: string;
   balanceLabel: string;
@@ -95,6 +97,7 @@ const ES: EscrowCopy = {
   demoDoneTitle: 'Llegamos hasta el pago',
   demoDoneLead: 'Tus USDC volvieron a tu saldo. Terminá la compra en Día con tu changuito.',
   handoffCta: 'Terminar en Día',
+  demoPaid: (amount) => `${amount} USDC de prueba`,
   postalNote: (profile, chat) => `Enviamos a tu código postal ${profile}, el de tu perfil. Los precios del chat eran para ${chat}.`,
   escrowNote:
     'La plata queda en un escrow en Solana, no con nosotros. Si la compra no llega al pago, vuelve a tu billetera sola.',
@@ -163,6 +166,7 @@ const EN: EscrowCopy = {
   demoDoneTitle: 'We reached payment',
   demoDoneLead: 'Your USDC is back in your balance. Finish the purchase at Día with your basket.',
   handoffCta: 'Finish at Día',
+  demoPaid: (amount) => `${amount} test USDC`,
   postalNote: (profile, chat) => `We deliver to ${profile}, your profile's postal code. Chat prices were for ${chat}.`,
   escrowNote:
     "The money sits in an escrow on Solana, not with us. If the purchase doesn't reach payment, it goes back to your wallet on its own.",

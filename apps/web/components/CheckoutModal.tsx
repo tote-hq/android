@@ -259,21 +259,26 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
     };
   }, [step, quote, refresh]);
 
+  // A finished demo files the chat as completed too, so the demo has an end:
+  // the basket becomes a receipt like a real purchase would. The amount says
+  // "de prueba" — the USDC went back, and the receipt must not claim a payment
+  // nobody made (chat-store keeps the string as it was on screen).
+  const demoFinished = step === 'refunded' && demo;
   const finish = useCallback(() => {
-    if (step !== 'done' || !quote) return onClose();
+    if ((step !== 'done' && !demoFinished) || !quote) return onClose();
     onPaid({
       orderId: quote.orderId.slice(0, 12),
       retailer: cart.retailer,
-      paidDisplay: `${quote.amountDisplay} USDC`,
+      paidDisplay: demoFinished ? copy.demoPaid(quote.amountDisplay) : `${quote.amountDisplay} USDC`,
       paidAt: Date.now(),
       lines: cart.lines.filter((l) => l.available).map((l) => ({ name: l.name, quantity: l.quantity, lineTotal: l.lineTotal.display })),
       total: cart.total.display,
     });
-  }, [step, quote, cart, onClose, onPaid]);
+  }, [step, demoFinished, quote, cart, copy, onClose, onPaid]);
 
   // Closing mid-purchase is allowed: the server keeps shopping and the escrow
   // closes either way. Only the view goes.
-  const close = step === 'done' ? finish : onClose;
+  const close = step === 'done' || demoFinished ? finish : onClose;
   const railAt = step === 'login' ? 0 : step === 'review' || step === 'locking' ? 1 : 2;
   const closeSig = status?.closeSig ?? null;
   const lockSig = status?.openSig ?? openSig;

@@ -370,7 +370,9 @@ gets placed. What it was protecting is kept in the rules below.*
   `lib/shared-card.ts`) — the in-process mock even with `sandbox_mock` off,
   no Día login asked, stopping at payment (`mock-h-…`, `not_attempted`), so
   the order refunds and the modal hands off to the chat's cart link
-  ("Terminar en Día"). Decided at the quote, so the modal says which run it
+  ("Terminar en Día"). Listo then closes the chat as completed, like a
+  real purchase, so a demo has an end — but the receipt's amount reads
+  "USDC de prueba", because nothing was charged. Decided at the quote, so the modal says which run it
   is, and again at the start, which is the check that counts; an unreadable
   list fails closed to the demo. A member whose profile has no Día login is
   asked for it, and it is saved encrypted, *before* the lock — a run that

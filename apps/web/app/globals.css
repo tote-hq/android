@@ -2089,3 +2089,27 @@ a:hover { color: var(--chg-arcilla); }
   background: var(--surface);
   color: var(--text);
 }
+
+/* A password box with its eye (PasswordInput.tsx). The eye sits inside the
+   field's right edge; the input keeps room for it so text never runs under. */
+.ck-secret { position: relative; display: flex; }
+.ck-secret .ck-input { flex: 1; padding-right: 46px; }
+.ck-eye {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.ck-eye:hover { color: var(--text); }
+.ck-eye:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: -2px; }

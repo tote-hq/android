@@ -2078,3 +2078,14 @@ a:hover { color: var(--chg-arcilla); }
 /* In the profile there is room for the long label at every width. */
 .profile-who .mode-long { display: inline; }
 .profile-who .mode-short { display: none; }
+
+/* The demo run's promise, before anything is locked: a neutral callout, not a
+   warning — nothing is wrong, it is a different run. */
+.ck-demo {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}

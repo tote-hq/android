@@ -9,12 +9,15 @@
  * the job body to the sandbox, over the same token-authenticated request that
  * carries the shopper's login. Nothing logs it and the browser never sees it.
  *
- * Who may buy with it: only wallets on `shared_card_member` for the card's
+ * Who may pay with it: only wallets on `shared_card_member` for the card's
  * network. The card is real money, and "any signed-in wallet" is anybody with
- * an email. The check runs twice — at the quote, so a wallet that is not on
- * the list is told before it locks anything, and at the start, which is the
- * one that counts — and it fails closed: a member list that cannot be read is
- * an empty one. Add and remove members with `npm run members`.
+ * an email. Everyone else still gets a checkout — the demo run
+ * (`checkoutMode`): the mock walks the same steps, stops at payment, the
+ * order refunds and the shopper finishes in Día from the cart link. The check
+ * runs twice — at the quote, so the modal knows which run to describe, and at
+ * the start, which is the one that counts — and it fails closed: a member list
+ * that cannot be read is an empty one, which means a demo, never the card.
+ * Add and remove members with `npm run members`.
  *
  * The mock sandbox (config.sandbox_mock) never touches the card, so it skips
  * the gate: a demo on the mock stays open to everyone.
@@ -59,6 +62,20 @@ export function decideAccess(i: { mock: boolean; cardNetwork: string | undefined
   if (i.mock) return 'mock';
   if (!i.cardNetwork) return 'no-card';
   return i.member ? 'ok' : 'not-member';
+}
+
+/**
+ * Which run a checkout gets.
+ *   - `live`: the real sandbox, paying with the shared card. Needs the Día login.
+ *   - `demo`: the mock, whatever `config` says, stopping at payment; refunds and
+ *     hands off to the cart link. Needs no Día login. Not on the list, or no card.
+ *   - `mock`: the operator turned the mock on for everyone (config.sandbox_mock).
+ */
+export type CheckoutMode = 'live' | 'demo' | 'mock';
+
+export function checkoutMode(access: CardAccess): CheckoutMode {
+  if (access === 'mock') return 'mock';
+  return access === 'ok' ? 'live' : 'demo';
 }
 
 /** The network whose row is the card in use, or undefined when there is none. */

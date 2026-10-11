@@ -25,7 +25,16 @@ export interface EscrowCopy {
   diaMissing: string;
   profileUsing: (email: string) => string;
   profileOther: string;
-  saveToProfile: string;
+  /** Saves the Día login to the profile (encrypted) before anything is locked. */
+  diaSaveCta: string;
+  diaSaving: string;
+  /** The run for a wallet that may not pay with our card: stops at payment, refunds, hands off. */
+  demoNote: string;
+  demoPayment: string;
+  demoShoppingNote: string;
+  demoDoneTitle: string;
+  demoDoneLead: string;
+  handoffCta: string;
   postalNote: (profile: string, chat: string) => string;
   escrowNote: string;
   balanceLabel: string;
@@ -66,7 +75,7 @@ const ES: EscrowCopy = {
   rateNote: (source) => `Cotización ${source} del momento. El envío es el que cobra Día a tu código postal.`,
   diaTitle: 'Tu cuenta de Día',
   diaLead:
-    'Compramos en tu cuenta, así el pedido es tuyo y llega a tu dirección guardada. Usamos estos datos solo para esta compra: no los guardamos.',
+    'Compramos en tu cuenta, así el pedido es tuyo y llega a tu dirección guardada. Los guardamos cifrados en tu perfil y solo los usamos para hacer tus pedidos.',
   emailLabel: 'Email',
   passwordLabel: 'Contraseña',
   dniLabel: 'DNI',
@@ -76,8 +85,16 @@ const ES: EscrowCopy = {
   phoneLabel: 'Teléfono',
   diaMissing: 'Completá email, contraseña y DNI de tu cuenta de Día.',
   profileUsing: (email) => `Compramos con los datos de tu perfil${email ? ` (${email})` : ''}.`,
-  profileOther: 'Usar otros datos esta vez',
-  saveToProfile: 'Guardar en mi perfil para la próxima',
+  profileOther: 'Editar mis datos de Día',
+  diaSaveCta: 'Guardar y seguir',
+  diaSaving: 'Guardando…',
+  demoNote:
+    'Modo prueba: vamos hasta el pago con tu changuito y te devolvemos los USDC. Después terminás la compra en Día.',
+  demoPayment: 'Llegamos al pago. En modo prueba no pagamos…',
+  demoShoppingNote: 'Estamos recorriendo la compra paso a paso. Tarda unos segundos.',
+  demoDoneTitle: 'Llegamos hasta el pago',
+  demoDoneLead: 'Tus USDC volvieron a tu saldo. Terminá la compra en Día con tu changuito.',
+  handoffCta: 'Terminar en Día',
   postalNote: (profile, chat) => `Enviamos a tu código postal ${profile}, el de tu perfil. Los precios del chat eran para ${chat}.`,
   escrowNote:
     'La plata queda en un escrow en Solana, no con nosotros. Si la compra no llega al pago, vuelve a tu billetera sola.',
@@ -127,7 +144,7 @@ const EN: EscrowCopy = {
   rateNote: (source) => `Live ${source} rate. Delivery is what Día charges to your postal code.`,
   diaTitle: 'Your Día account',
   diaLead:
-    "We buy in your account, so the order is yours and goes to your saved address. We use these only for this purchase and don't keep them.",
+    'We buy in your account, so the order is yours and goes to your saved address. We keep them encrypted in your profile and use them only to place your orders.',
   emailLabel: 'Email',
   passwordLabel: 'Password',
   dniLabel: 'DNI',
@@ -137,8 +154,15 @@ const EN: EscrowCopy = {
   phoneLabel: 'Phone',
   diaMissing: 'Fill in your Día email, password and DNI.',
   profileUsing: (email) => `We'll buy with your profile details${email ? ` (${email})` : ''}.`,
-  profileOther: 'Use other details this time',
-  saveToProfile: 'Save to my profile for next time',
+  profileOther: 'Edit my Día details',
+  diaSaveCta: 'Save and continue',
+  diaSaving: 'Saving…',
+  demoNote: "Test mode: we take your basket up to payment and give your USDC back. Then you finish the purchase at Día.",
+  demoPayment: "We reached payment. In test mode we don't pay…",
+  demoShoppingNote: "We're walking through the purchase step by step. It takes a few seconds.",
+  demoDoneTitle: 'We reached payment',
+  demoDoneLead: 'Your USDC is back in your balance. Finish the purchase at Día with your basket.',
+  handoffCta: 'Finish at Día',
   postalNote: (profile, chat) => `We deliver to ${profile}, your profile's postal code. Chat prices were for ${chat}.`,
   escrowNote:
     "The money sits in an escrow on Solana, not with us. If the purchase doesn't reach payment, it goes back to your wallet on its own.",

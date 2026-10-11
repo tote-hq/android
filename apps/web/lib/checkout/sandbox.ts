@@ -21,6 +21,11 @@
  * come back declined, which is the refund path. Neither flag set and no
  * SANDBOX_URL: checkout is off and every locked order refunds.
  *
+ * A wallet not on the shared card's member list gets the demo run instead
+ * (`startJob(..., { demo: true })`): the same mock, whatever the flags say,
+ * stopping at payment without paying, so the order refunds and the dialog
+ * hands off to the cart link.
+ *
  * The mock is stateless on purpose: the phase is derived from when the job
  * started, so it survives Next compiling each route into its own bundle.
  */
@@ -102,20 +107,30 @@ function remote(env: NodeJS.ProcessEnv) {
   return { base, headers };
 }
 
+/**
+ * `demo` is the run for a wallet that may not use the shared card
+ * (lib/shared-card.ts `checkoutMode`): always the mock, whatever the flags
+ * and SANDBOX_URL say, and it stops at the payment step instead of placing,
+ * so the order refunds and the shopper finishes in Día from the cart link.
+ * No Día login is needed for it, so `shopper` may be absent.
+ */
 export async function startJob(
   orderId: string,
   items: SandboxItem[],
-  shopper: SandboxShopper,
+  shopper: SandboxShopper | undefined,
   card: SandboxCard | undefined,
   flags: MockFlags,
   env: NodeJS.ProcessEnv = process.env,
+  opts: { demo?: boolean } = {},
 ): Promise<string> {
+  if (opts.demo) return `mock-h-${Date.now()}-${items.length}`;
   const mode = sandboxMode(flags, env);
   if (mode === 'off') throw new Error('checkout is off: no SANDBOX_URL and sandbox_mock is not on');
   if (mode === 'mock') {
     const fail = flags.mockFail ? 'f' : 'k';
     return `mock-${fail}-${Date.now()}-${items.length}`;
   }
+  if (!shopper) throw new Error('a sandbox run needs the shopper\'s Día login');
   const { base, headers } = remote(env);
   const res = await fetch(`${base}/jobs`, {
     method: 'POST',
@@ -146,6 +161,25 @@ function mockJob(jobId: string): SandboxJob {
   const items = Number(count) || 0;
 
   if (phase !== 'placed') return { job_id: jobId, status: 'running', phase };
+  // Demo: reached the payment step and stopped there on purpose. Never placed,
+  // so the escrow refunds; the modal hands off to the cart link.
+  if (flag === 'h') {
+    return {
+      job_id: jobId,
+      status: 'done',
+      phase: 'payment',
+      result: {
+        reached_payment: true,
+        payment: 'not_attempted',
+        payment_detail: 'demo: stopped at payment (not a card member)',
+        store_order_id: null,
+        items_added: items,
+        cart: { orderFormId: `mock-orderform-${started}` },
+        final_url: 'https://diaonline.supermercadosdia.com.ar/checkout/#/payment',
+        wall_s: Math.round(elapsed),
+      },
+    };
+  }
   const declined = flag === 'f';
   return {
     job_id: jobId,

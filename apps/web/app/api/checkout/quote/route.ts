@@ -21,7 +21,7 @@ import { NO_DELIVERY, quoteShipping, type ShippingLocation } from '../../../../l
 import { checkoutStore } from '../../../../lib/checkout/store.ts';
 import { sandboxFlags } from '../../../../lib/config.ts';
 import { getProfile } from '../../../../lib/profile.ts';
-import { cardAccess } from '../../../../lib/shared-card.ts';
+import { cardAccess, checkoutMode } from '../../../../lib/shared-card.ts';
 import type { QuoteResponse } from '../../../../lib/checkout/types.ts';
 import { DEPLOYMENTS } from '../../../../lib/deployments.ts';
 import { bytesToHex } from '../../../../lib/escrow.ts';
@@ -59,19 +59,11 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: 'El changuito está vacío.' }, { status: 400 });
   }
 
-  // Only wallets on the card's member list may buy with it (lib/shared-card.ts).
-  // Asked here, before anything is locked, so a wallet that is not on the
-  // list hears it now instead of after a lock and a refund.
-  const access = await cardAccess(user.address, (await sandboxFlags()).mock);
-  if (access === 'not-member') {
-    return Response.json(
-      { error: 'Todavía no estás habilitado para comprar con Changuito. Pedinos acceso y te avisamos.' },
-      { status: 403 },
-    );
-  }
-  if (access === 'no-card') {
-    return Response.json({ error: 'Las compras no están disponibles en este momento. Probá más tarde.' }, { status: 503 });
-  }
+  // Only wallets on the card's member list pay with it (lib/shared-card.ts).
+  // Everyone else gets the demo run: same lock, the mock stops at payment,
+  // refund, and the cart link to finish in Día. Asked here so the modal can
+  // say which run this is before anything is locked; the start asks again.
+  const mode = checkoutMode(await cardAccess(user.address, (await sandboxFlags()).mock));
 
   // The postal code the shopper browsed with: prices, stock and envío are all quoted per area.
   // The profile's postcode wins over the chat's: it is where the shopper said
@@ -126,6 +118,7 @@ export async function POST(req: Request): Promise<Response> {
     lines: lines.map((l) => ({ name: l.name, skuId: l.skuId, quantity: l.quantity, lineTotal: l.lineTotal.display })),
     handoffUrl,
     createdAt: Date.now(),
+    mode,
   });
 
   const res: QuoteResponse = {
@@ -145,6 +138,7 @@ export async function POST(req: Request): Promise<Response> {
     chatPostalCode: chatPostal ?? null,
     programId: DEPLOYMENTS.devnet.programId,
     usdcMint: DEPLOYMENTS.devnet.usdcMint,
+    mode,
   };
   return Response.json(res);
 }

@@ -22,6 +22,12 @@ export interface QuoteResponse {
   chatPostalCode: string | null;
   programId: string;
   usdcMint: string;
+  /**
+   * Which run this checkout gets (lib/shared-card.ts `checkoutMode`): `live`
+   * pays with the shared card and needs the Día login; `demo` stops at payment,
+   * refunds and hands off to the cart link; `mock` is the operator's mock.
+   */
+  mode: 'live' | 'demo' | 'mock';
 }
 
 export type CheckoutStage = 'quoted' | 'locked' | 'shopping' | 'done' | 'refunded';
@@ -37,9 +43,15 @@ export interface StatusResponse {
   storeOrderId: string | null;
   openSig: string | null;
   closeSig: string | null;
+  /**
+   * The store's cart link: on `done`, and on `refunded` so the shopper can
+   * finish the purchase in Día themselves — which is the whole point of a demo run.
+   */
   handoffUrl: string | null;
   amountDisplay: string;
   error: string | null;
+  /** Which run this was (QuoteResponse `mode`); null on records from before it existed. */
+  mode: 'live' | 'demo' | 'mock' | null;
 }
 
 export interface OrderLine {

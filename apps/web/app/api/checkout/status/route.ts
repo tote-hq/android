@@ -9,9 +9,11 @@
  *
  * "Anything else" includes a declined card, a card that was never tried (the
  * job carried no card because `shared_card` has no row) and a run that never reached payment.
- * A demo run (a wallet not on the card's member list) always lands here: it
- * stops at payment on purpose, refunds, and the reply carries the cart link
- * so the shopper finishes in Día.
+ * A demo run (a wallet not on the card's member list) stops at payment on
+ * purpose and still *settles* once it gets there: the treasury takes the
+ * devnet USDC so the demo ends like a purchase, and the receipt's basis is
+ * `demo-reached-payment`, not `sandbox-order-placed`. The reply carries the
+ * cart link so the shopper finishes in Día.
  * The treasury keeps the USDC only when the operator's card actually paid
  * for the shopper's order; the receipt carries Día's order number.
  *
@@ -84,7 +86,11 @@ export async function GET(req: Request): Promise<Response> {
       if (job.status === 'done' || job.status === 'failed') {
         rec.payment = job.result?.payment ?? 'not_attempted';
         rec.storeOrderForm = job.result?.cart?.orderFormId;
-        if (job.status === 'done' && rec.payment === 'placed') {
+        // A demo run that reached payment is a finished order too: the
+        // treasury takes the (devnet) USDC as it would for a placed one, so
+        // the demo ends the way a purchase does. Its receipt says what it was.
+        const demoComplete = rec.mode === 'demo' && job.status === 'done' && job.result?.reached_payment === true;
+        if ((job.status === 'done' && rec.payment === 'placed') || demoComplete) {
           finished = 'settle';
           rec.storeOrderId = job.result?.store_order_id ?? undefined;
         } else {
@@ -117,7 +123,7 @@ export async function GET(req: Request): Promise<Response> {
             basketHash: order.basketHash,
             amountUnits: order.amount.toString(),
             settledAt: new Date().toISOString(),
-          }).replace('basis|buyer-confirmed', 'basis|sandbox-order-placed') +
+          }).replace('basis|buyer-confirmed', rec.mode === 'demo' ? 'basis|demo-reached-payment' : 'basis|sandbox-order-placed') +
           `job|${rec.jobId}\norderform|${rec.storeOrderForm ?? ''}\nstore-order|${rec.storeOrderId ?? ''}\n`;
         rec.closeSig = await settleOrder(order, createHash('sha256').update(receipt).digest());
       } else {

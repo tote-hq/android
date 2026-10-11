@@ -14,6 +14,7 @@ import { explorerTx } from '../lib/solana.ts';
 import { useBalances } from '../lib/use-balances.ts';
 import { useWallet } from '../lib/use-wallet.ts';
 import { useLang } from './LangProvider';
+import { PasswordInput } from './PasswordInput';
 
 /**
  * From a full basket to a settled escrow, in four steps:
@@ -390,7 +391,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
                     </label>
                     <label>
                       {copy.passwordLabel}
-                      <input className="ck-input" type="password" autoComplete="new-password" value={dia.password} onChange={field('password')} />
+                      <PasswordInput value={dia.password} onChange={field('password')} testId="checkout-password" />
                     </label>
                     <label>
                       {copy.dniLabel}

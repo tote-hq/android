@@ -8,6 +8,7 @@ import { shortAddress } from '../lib/use-wallet.ts';
 import { uiCopy } from '../lib/ui-copy.ts';
 import { useLang } from './LangProvider';
 import { Modal } from './Modal';
+import { PasswordInput } from './PasswordInput';
 import { ModeBadge } from './ModeBadge';
 import { Purchases } from './Purchases';
 
@@ -285,13 +286,11 @@ export function ProfileForm({
         </label>
         <label>
           {copy.password}
-          <input
-            className="ck-input"
-            type="password"
-            autoComplete="new-password"
+          <PasswordInput
             value={form.password}
             onChange={set('password')}
             placeholder={saved.hasPassword ? '••••••••' : ''}
+            testId="profile-password"
           />
           <span className="ck-hint">{saved.hasPassword ? copy.passwordSaved : copy.passwordHint}</span>
         </label>

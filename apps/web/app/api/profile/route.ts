@@ -18,9 +18,13 @@ const NO_STORE = { 'cache-control': 'no-store' };
 
 function failure(err: unknown): Response {
   if (err instanceof ProfileInputError) return Response.json({ error: err.message }, { status: 400, headers: NO_STORE });
-  // Name only: a decrypt or database error must not echo anything it read.
-  console.error('[profile]', err instanceof Error ? err.name : 'failed');
   const unavailable = err instanceof ProfileKeyError || err instanceof ProfileUnavailableError;
+  // Name only for anything else: a decrypt or database error must not echo
+  // anything it read. The two "unavailable" errors are ours and name the
+  // setting that is missing ("PROFILE_ENC_KEY is not set", "… must be 32
+  // bytes", "DATABASE_URL is not set") — never a value — and that is the line
+  // an operator needs in the deployment's logs when Guardar answers 503.
+  console.error('[profile]', err instanceof Error ? (unavailable ? `${err.name}: ${err.message}` : err.name) : 'failed');
   return Response.json(
     { error: unavailable ? 'El perfil no está disponible en este momento.' : 'No pudimos guardar tu perfil.' },
     { status: unavailable ? 503 : 500, headers: NO_STORE },

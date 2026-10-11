@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { initials, profileCopy, type ProfileCopy } from '../lib/profile-copy.ts';
+import { fetchAs, type Who } from '../lib/fetch-as.ts';
 import type { PublicProfile } from '../lib/profile.ts';
+import { useWallet } from '../lib/use-wallet.ts';
 import { shortAddress } from '../lib/use-wallet.ts';
 import { uiCopy } from '../lib/ui-copy.ts';
 import { useLang } from './LangProvider';
@@ -207,37 +209,53 @@ function LogoutIcon() {
 }
 
 function ProfileLoader({ copy, onSaved }: { copy: ProfileCopy; onSaved?: () => void }) {
+  const wallet = useWallet();
+  const address = wallet.address;
+  const sign = wallet.accessToken;
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Read for *this* wallet (lib/fetch-as.ts): the session cookie can lag a
+  // Privy account switch, and the answer would be the previous account's.
   useEffect(() => {
     let live = true;
-    void fetch('/api/profile', { cache: 'no-store' })
+    setProfile(null);
+    setError(null);
+    void fetchAs({ address, sign }, '/api/profile', { cache: 'no-store' })
       .then(async (res) => {
         const body = await res.json().catch(() => null);
         if (!live) return;
-        if (!res.ok) setError(body?.error ?? copy.failed);
+        if (!res.ok) setError(body?.message ?? body?.error ?? copy.failed);
         else setProfile(body as PublicProfile);
       })
       .catch(() => live && setError(copy.failed));
     return () => {
       live = false;
     };
-  }, [copy.failed]);
+  }, [address, sign, copy.failed]);
 
   if (error) return <p className="pay-error" role="alert">{error}</p>;
   if (!profile) return <p className="ck-note">{copy.loading}</p>;
-  return <ProfileForm copy={copy} profile={profile} onSave={saveProfile} onSaved={onSaved} />;
+  // Keyed by wallet, so a switch starts the form from that wallet's profile.
+  return (
+    <ProfileForm
+      key={address ?? 'none'}
+      copy={copy}
+      profile={profile}
+      onSave={(patch) => saveProfile({ address, sign }, patch)}
+      onSaved={onSaved}
+    />
+  );
 }
 
-async function saveProfile(patch: Record<string, string>): Promise<PublicProfile> {
-  const res = await fetch('/api/profile', {
+async function saveProfile(who: Who, patch: Record<string, string>): Promise<PublicProfile> {
+  const res = await fetchAs(who, '/api/profile', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(patch),
   });
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.error ?? '');
+  if (!res.ok) throw new Error(body?.message ?? body?.error ?? '');
   return body as PublicProfile;
 }
 

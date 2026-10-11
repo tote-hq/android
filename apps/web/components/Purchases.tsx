@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { track, trackLoginStart } from '../lib/analytics';
+import { fetchAs } from '../lib/fetch-as.ts';
 import type { OrderLine } from '../lib/checkout/types.ts';
 import { DEFAULT_LANG, type Lang } from '../lib/lang.ts';
 import { purchaseDate, purchasesCopy } from '../lib/orders-copy.ts';
@@ -35,12 +36,18 @@ export function Purchases({ embedded = false }: { embedded?: boolean } = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Another account's purchases must not stay on screen after a switch.
+  useEffect(() => {
+    setOrders(null);
+    setError(null);
+  }, [address]);
+
   const load = useCallback(async () => {
     if (!address || loading) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/checkout/orders', { cache: 'no-store' });
+      const res = await fetchAs({ address, sign: wallet.accessToken }, '/api/checkout/orders', { cache: 'no-store' });
       const body = await res.json().catch(() => null);
       if (!res.ok) {
         setError(said(body, lang) ?? copy.error);
@@ -54,7 +61,7 @@ export function Purchases({ embedded = false }: { embedded?: boolean } = {}) {
     } finally {
       setLoading(false);
     }
-  }, [address, copy, lang, loading]);
+  }, [address, wallet.accessToken, copy, lang, loading]);
 
   if (!wallet.enabled) {
     return (

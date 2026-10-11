@@ -7,7 +7,7 @@
  * but its own row. The password goes in and never comes out: both answers
  * carry `hasPassword` instead. Nothing from the body is ever logged.
  */
-import { readLoggedInUser } from '../../../lib/login-gate.ts';
+import { readSessionUser, sessionMismatchResponse } from '../../../lib/session-match.ts';
 import { ProfileKeyError } from '../../../lib/profile-crypto.ts';
 import { getProfile, ProfileInputError, ProfileUnavailableError, publicProfile, saveProfile } from '../../../lib/profile.ts';
 
@@ -32,7 +32,8 @@ function failure(err: unknown): Response {
 }
 
 export async function GET(req: Request): Promise<Response> {
-  const user = await readLoggedInUser(req);
+  const user = await readSessionUser(req);
+  if (!user.ok && user.mismatch) return sessionMismatchResponse();
   if (!user.ok) return Response.json({ error: 'Iniciá sesión.' }, { status: 401, headers: NO_STORE });
   try {
     return Response.json(publicProfile(await getProfile(user.address)), { headers: NO_STORE });
@@ -42,7 +43,8 @@ export async function GET(req: Request): Promise<Response> {
 }
 
 export async function PUT(req: Request): Promise<Response> {
-  const user = await readLoggedInUser(req);
+  const user = await readSessionUser(req);
+  if (!user.ok && user.mismatch) return sessionMismatchResponse();
   if (!user.ok) return Response.json({ error: 'Iniciá sesión.' }, { status: 401, headers: NO_STORE });
   const body = await req.json().catch(() => null);
   if (!body || typeof body !== 'object') return Response.json({ error: 'Datos inválidos.' }, { status: 400, headers: NO_STORE });

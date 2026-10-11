@@ -24,6 +24,7 @@ import { LOGIN_REQUIRED, LOGIN_REQUIRED_MESSAGE, loginRequiredMessage } from './
 import type { ChatImage } from './chat-image.ts';
 import { parseEvents, type ChatRequest } from './protocol';
 import { ensureUserCookie, type TokenSource } from './session-login';
+import { WALLET_HEADER } from './wallet-header.ts';
 
 /**
  * One turn at a time against /api/chat, decoded from SSE.
@@ -140,7 +141,13 @@ export function useChat(auth?: UseChatAuth) {
       };
       return fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream, application/json',
+          // Which wallet this turn is for, so a cookie left over from another
+          // account is not used to archive or prefill it (lib/wallet-header.ts).
+          ...(authRef.current.address ? { [WALLET_HEADER]: authRef.current.address } : {}),
+        },
         body: JSON.stringify(body),
         signal: controller.signal,
         credentials: 'same-origin',

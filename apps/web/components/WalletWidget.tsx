@@ -173,6 +173,11 @@ export function WalletWidget() {
           address={address}
           email={wallet.email ?? null}
           onLogout={signOut}
+          onSaved={() => {
+            setShowingProfile(false);
+            setNote(profileCopy(lang).saved);
+            requestAnimationFrame(() => profileButton.current?.focus());
+          }}
           onReceive={() => {
             setShowingProfile(false);
             setReceiving(true);

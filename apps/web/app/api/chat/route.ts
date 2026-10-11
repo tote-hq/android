@@ -8,6 +8,7 @@ import { withSession } from '@/lib/mcp/session';
 import { encodeEvent, HEARTBEAT, SSE_HEADERS, type ChatRequest, type UiEvent } from '@/lib/protocol';
 import { requireHuman } from '@/lib/human-gate';
 import { readLoggedInUser, requireLoginOrFreeTurn } from '@/lib/login-gate';
+import { presetLocationFromProfile } from '@/lib/profile-location';
 
 /**
  * Node, not edge: the MCP server reads `node:url` and @solana/kit needs
@@ -132,6 +133,10 @@ export async function POST(req: Request): Promise<Response> {
           // per-session queue covers the whole read-modify-write and two tabs
           // on one id cannot each save a history missing the other's messages.
           const turn = (await turns.get(body.sessionId)) ?? newTurnState();
+          // A signed-in shopper with a postcode in their profile is not asked
+          // for it again at the start of every basket (lib/profile-location.ts).
+          // No-op once the session has a location, and silent when it fails.
+          if (owner) await presetLocationFromProfile(session, owner);
           brain = (await runTurn(session, turn, body.message, emit, lang, body.image)).brain;
 
           // Only after a clean return. A turn that threw mid-hop can leave an

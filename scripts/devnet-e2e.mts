@@ -12,7 +12,7 @@
  *
  * and prints the outcome with Solscan links. The throwaway wallet is on no
  * card member list, so with the mock off it gets the demo run (stops at
- * payment and refunds); turn the mock on to see a settle. Which sandbox runs is the
+ * payment and settles); the mock with `sandbox_mock_fail` shows a refund. Which sandbox runs is the
  * `config` table's call, not this script's: `npm run config -- set
  * sandbox_mock true` for the mock (settles), plus `sandbox_mock_fail true` for
  * a declined card (refunds). With the mock off and no SANDBOX_URL, start fails

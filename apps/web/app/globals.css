@@ -2113,3 +2113,25 @@ a:hover { color: var(--chg-arcilla); }
 }
 .ck-eye:hover { color: var(--text); }
 .ck-eye:focus-visible { outline: 2px solid var(--brand-ink); outline-offset: -2px; }
+
+/* Toast.tsx: above dialogs (their backdrop is 50), under nothing. Neutral
+   surface; the tone is the text colour, never a sunflower block. */
+.toast {
+  position: fixed;
+  top: calc(var(--vv-top, 0px) + var(--topbar-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  margin: 0;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ok);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(42, 26, 20, 0.16);
+}
+.toast.is-error { color: var(--warn-ink); }

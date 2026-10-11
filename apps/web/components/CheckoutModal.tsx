@@ -262,9 +262,11 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
 
   // A finished demo files the chat as completed too, so the demo has an end:
   // the basket becomes a receipt like a real purchase would. The amount says
-  // "de prueba" — the USDC went back, and the receipt must not claim a payment
-  // nobody made (chat-store keeps the string as it was on screen).
-  const demoFinished = step === 'refunded' && demo;
+  // "de prueba": the treasury took devnet USDC and Día was never paid, and the
+  // receipt must not read like a store order (chat-store keeps the string as
+  // it was on screen). Settled when it reached payment, refunded when it
+  // failed before: both end the chat.
+  const demoFinished = demo && (step === 'done' || step === 'refunded');
   const finish = useCallback(() => {
     if ((step !== 'done' && !demoFinished) || !quote) return onClose();
     onPaid({
@@ -468,17 +470,25 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
 
           {step === 'done' ? (
             <div className="ck-pay" data-testid="checkout-done-step">
-              <h3 className="ck-ok">{copy.doneTitle}</h3>
-              <p className="ck-lead">{copy.doneLead(status?.storeOrderId ?? null)}</p>
-              <p className="ck-note">{copy.doneNote}</p>
+              <h3 className="ck-ok">{demo ? copy.demoDoneTitle : copy.doneTitle}</h3>
+              <p className="ck-lead">{demo ? copy.demoDoneLead : copy.doneLead(status?.storeOrderId ?? null)}</p>
+              {demo ? (
+                status?.handoffUrl ? (
+                  <a className="btn" href={status.handoffUrl} target="_blank" rel="noopener noreferrer" data-testid="checkout-handoff">
+                    {copy.handoffCta} ↗
+                  </a>
+                ) : null
+              ) : (
+                <p className="ck-note">{copy.doneNote}</p>
+              )}
             </div>
           ) : null}
 
           {step === 'refunded' ? (
             <div className="ck-pay" data-testid="checkout-refunded-step">
-              <h3 className={demo ? 'ck-ok' : 'pay-warn'}>{demo ? copy.demoDoneTitle : copy.refundedTitle}</h3>
+              <h3 className="pay-warn">{copy.refundedTitle}</h3>
               <p className="ck-lead">
-                {demo ? copy.demoDoneLead : status?.payment === 'declined' ? copy.declinedLead : copy.refundedLead}
+                {demo ? copy.demoRefundedLead : status?.payment === 'declined' ? copy.declinedLead : copy.refundedLead}
               </p>
               {/* The cart the shopper built in the chat, at the store: the way
                   to finish when we could not, and the whole point of a demo. */}

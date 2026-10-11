@@ -368,11 +368,12 @@ gets placed. What it was protecting is kept in the rules below.*
   for the card's network (`npm run members -- add <address>`). Everyone else
   is not refused: they get the **demo run** (`checkoutMode` in
   `lib/shared-card.ts`) — the in-process mock even with `sandbox_mock` off,
-  no Día login asked, stopping at payment (`mock-h-…`, `not_attempted`), so
-  the order refunds and the modal hands off to the chat's cart link
-  ("Terminar en Día"). Listo then closes the chat as completed, like a
-  real purchase, so a demo has an end — but the receipt's amount reads
-  "USDC de prueba", because nothing was charged. Decided at the quote, so the modal says which run it
+  no Día login asked, stopping at payment (`mock-h-…`, `not_attempted`).
+  Reaching payment counts as complete: the escrow **settles** to the
+  treasury (devnet USDC, receipt basis `demo-reached-payment`), the modal
+  hands off to the chat's cart link ("Terminar en Día"), and Listo closes
+  the chat as completed with the amount reading "USDC de prueba". A demo
+  that fails before payment still refunds. Decided at the quote, so the modal says which run it
   is, and again at the start, which is the check that counts; an unreadable
   list fails closed to the demo. A member whose profile has no Día login is
   asked for it, and it is saved encrypted, *before* the lock — a run that
@@ -382,7 +383,8 @@ gets placed. What it was protecting is kept in the rules below.*
   `shared_card` means no card in the job, so the run stops at payment. It is derived from the resource, per §5 —
   do not add a `SANDBOX_PAY` flag that can outlive the card.
 - **Settle means Día placed the order**, and the receipt carries Día's order
-  number (`basis|sandbox-order-placed`). Copy must not claim more than the
+  number (`basis|sandbox-order-placed`) — except a demo run, which settles on
+  reaching payment and says so (`basis|demo-reached-payment`). Copy must not claim more than the
   sandbox's `payment` field says.
 - **The quote is goods + envío at belo's USDC `compra`.** The envío comes from
   VTEX's simulation at the shopper's postal code, picked by the same rule the

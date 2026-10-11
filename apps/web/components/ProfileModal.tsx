@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
 import { initials, profileCopy, type ProfileCopy } from '../lib/profile-copy.ts';
 import type { PublicProfile } from '../lib/profile.ts';
@@ -9,6 +9,7 @@ import { uiCopy } from '../lib/ui-copy.ts';
 import { useLang } from './LangProvider';
 import { Modal } from './Modal';
 import { PasswordInput } from './PasswordInput';
+import { Toast } from './Toast';
 import { ModeBadge } from './ModeBadge';
 import { Purchases } from './Purchases';
 
@@ -35,6 +36,7 @@ export function ProfileModal({
   email,
   onReceive,
   onLogout,
+  onSaved,
   initialTab = 'general',
 }: {
   onClose: () => void;
@@ -43,6 +45,8 @@ export function ProfileModal({
   /** Closes this dialog and opens the address QR. */
   onReceive: () => void;
   onLogout: () => void;
+  /** The Día details were saved: the caller closes this dialog and says so. */
+  onSaved?: () => void;
   initialTab?: ProfileTab;
 }) {
   const copy = profileCopy(useLang());
@@ -52,7 +56,7 @@ export function ProfileModal({
       onClose={onClose}
       initialTab={initialTab}
       general={<ProfileGeneral copy={copy} address={address} email={email} onReceive={onReceive} onLogout={onLogout} />}
-      dia={<ProfileLoader copy={copy} />}
+      dia={<ProfileLoader copy={copy} onSaved={onSaved} />}
     />
   );
 }
@@ -202,7 +206,7 @@ function LogoutIcon() {
   );
 }
 
-function ProfileLoader({ copy }: { copy: ProfileCopy }) {
+function ProfileLoader({ copy, onSaved }: { copy: ProfileCopy; onSaved?: () => void }) {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -223,7 +227,7 @@ function ProfileLoader({ copy }: { copy: ProfileCopy }) {
 
   if (error) return <p className="pay-error" role="alert">{error}</p>;
   if (!profile) return <p className="ck-note">{copy.loading}</p>;
-  return <ProfileForm copy={copy} profile={profile} onSave={saveProfile} />;
+  return <ProfileForm copy={copy} profile={profile} onSave={saveProfile} onSaved={onSaved} />;
 }
 
 async function saveProfile(patch: Record<string, string>): Promise<PublicProfile> {
@@ -242,10 +246,13 @@ export function ProfileForm({
   copy,
   profile,
   onSave,
+  onSaved,
 }: {
   copy: ProfileCopy;
   profile: PublicProfile;
   onSave: (patch: Record<string, string>) => Promise<PublicProfile>;
+  /** Called after a successful save; without it the form shows its own toast. */
+  onSaved?: () => void;
 }) {
   const [saved, setSaved] = useState(profile);
   const [form, setForm] = useState({
@@ -254,25 +261,30 @@ export function ProfileForm({
     dni: profile.dni ?? '',
     postcode: profile.postcode ?? '',
   });
-  const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Outcomes are toasts, not lines in the form: a success usually closes the
+  // dialog (onSaved), and an error floats over it and fades.
+  const [toast, setToast] = useState<{ id: number; tone: 'ok' | 'error'; message: string } | null>(null);
+  const clearToast = useCallback(() => setToast(null), []);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [k]: e.target.value }));
-    setState('idle');
   };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setState('saving');
-    setError(null);
+    setSaving(true);
+    setToast(null);
     try {
       const next = await onSave(form);
       setSaved(next);
       setForm((f) => ({ ...f, password: '' })); // the server has it now
-      setState('saved');
+      if (onSaved) onSaved();
+      else setToast({ id: Date.now(), tone: 'ok', message: copy.saved });
     } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : copy.failed);
-      setState('idle');
+      const message = err instanceof Error && err.message ? err.message : copy.failed;
+      setToast({ id: Date.now(), tone: 'error', message });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -305,19 +317,10 @@ export function ProfileForm({
           <span className="ck-hint">{copy.postcodeHint}</span>
         </label>
       </div>
-      {error ? (
-        <p className="pay-error" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {toast ? <Toast key={toast.id} message={toast.message} tone={toast.tone} onDone={clearToast} /> : null}
       <div className="modal-actions">
-        {state === 'saved' ? (
-          <span className="ck-ok" role="status">
-            {copy.saved}
-          </span>
-        ) : null}
-        <button type="submit" className="btn" disabled={state === 'saving'} data-testid="profile-save">
-          {state === 'saving' ? copy.saving : copy.save}
+        <button type="submit" className="btn" disabled={saving} data-testid="profile-save">
+          {saving ? copy.saving : copy.save}
         </button>
       </div>
     </form>

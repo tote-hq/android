@@ -25,6 +25,7 @@ import {
   type Address,
 } from '@solana/kit';
 
+import { openFailureMessage } from '../../../../lib/checkout/failure.ts';
 import { openTransaction } from '../../../../lib/checkout/open-tx.ts';
 import { checkoutStore } from '../../../../lib/checkout/store.ts';
 import { DEPLOYMENTS } from '../../../../lib/deployments.ts';
@@ -111,7 +112,9 @@ export async function PUT(req: Request): Promise<Response> {
     await waitFor(sig);
   } catch (err) {
     console.error('[checkout/open]', err);
-    return Response.json({ error: 'No pudimos bloquear el pago. Probá de nuevo.' }, { status: 502 });
+    // The simulation's own log names the cause (rent, USDC, an expired
+    // blockhash); say that instead of "something failed".
+    return Response.json({ error: openFailureMessage(err) }, { status: 502 });
   }
 
   rec.openSig = sig;

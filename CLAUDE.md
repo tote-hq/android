@@ -417,8 +417,16 @@ gets placed. What it was protecting is kept in the rules below.*
   stored and the buyer's signature verifies. A key that pays fees must never
   sign whatever a browser hands it — so do not relax that to "decodes to an
   `open` for this order". Rent stays the buyer's (`payer = buyer` in the
-  program), which is why the faucet still sends SOL. The cost is that the
-  resolver hot key now pays every shopper's fee and must be kept in devnet SOL.
+  program), and the order account is kept as the receipt, so every order
+  costs the buyer ~0.0015 SOL for good. The faucet's SOL ran out after a few
+  orders and `open` failed in simulation ("insufficient lamports") for
+  members and non-members alike, so `openTransaction` now puts a resolver →
+  buyer transfer for the shortfall *first in the same transaction* when the
+  buyer cannot cover the rent (`rentShortfall`). It is still a message the
+  server built, so the co-sign rule above holds. The cost is that the
+  resolver hot key now pays every shopper's fee and rent shortfall and must
+  be kept in devnet SOL. A failed `open` says why (`lib/checkout/failure.ts`),
+  and so does a refund — "Motivo: …" — never with the store's raw text.
 - **Settle and refund check on-chain status first.** Polls overlap; the
   program rejects a second close anyway, but a failed transaction is a red
   line in the UI for nothing.

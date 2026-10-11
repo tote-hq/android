@@ -56,6 +56,8 @@ export interface EscrowCopy {
   doneNote: string;
   refundedTitle: string;
   refundedLead: string;
+  /** Before the refund's cause. */
+  causeLabel: string;
   declinedLead: string;
   lockTx: string;
   settleTx: string;
@@ -127,6 +129,7 @@ const ES: EscrowCopy = {
   doneNote: 'Lo ves en "Mis pedidos" de tu cuenta de Día.',
   refundedTitle: 'No pudimos completar la compra',
   refundedLead: 'El escrow devolvió tus USDC a tu billetera.',
+  causeLabel: 'Motivo:',
   declinedLead: 'Día rechazó el pago con tarjeta. El escrow devolvió tus USDC a tu billetera.',
   lockTx: 'Bloqueo',
   settleTx: 'Liberación',
@@ -197,6 +200,7 @@ const EN: EscrowCopy = {
   doneNote: 'You can see it under "My orders" in your Día account.',
   refundedTitle: "We couldn't complete the purchase",
   refundedLead: 'The escrow returned your USDC to your wallet.',
+  causeLabel: 'Reason:',
   declinedLead: 'Día declined the card payment. The escrow returned your USDC to your wallet.',
   lockTx: 'Lock',
   settleTx: 'Release',

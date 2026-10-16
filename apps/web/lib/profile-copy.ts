@@ -75,6 +75,12 @@ const EN: ProfileCopy = {
   loading: 'Loading your profile…',
 };
 
+/** GET/PUT /api/profile's 503: what happened, and that the saved details are safe. */
+export const PROFILE_UNAVAILABLE = {
+  es: 'Ahora no podemos abrir tu perfil. Tus datos siguen guardados y cifrados; probá de nuevo en unos minutos.',
+  en: "We can't open your profile right now. Your details are still saved and encrypted; try again in a few minutes.",
+} as const;
+
 export function profileCopy(lang: Lang): ProfileCopy {
   return lang === 'en' ? EN : ES;
 }

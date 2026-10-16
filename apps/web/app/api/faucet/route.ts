@@ -57,7 +57,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const user = await readSessionUser(req);
 
-  if (!user.ok && user.mismatch) return sessionMismatchResponse();
+  if (!user.ok && user.mismatch) return sessionMismatchResponse(req);
   if (!user.ok) return Response.json({ error: 'Iniciá sesión para cargar USDC.' }, { status: 401 });
   if (!resolverConfigured()) return Response.json({ error: 'El faucet no está configurado.' }, { status: 503 });
 

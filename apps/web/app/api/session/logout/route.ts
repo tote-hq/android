@@ -1,5 +1,5 @@
-import { requireHuman } from '../../../../lib/human-gate';
-import { clearUserCookieHeader } from '../../../../lib/login-gate';
+import { requireHuman } from '../../../../lib/human-gate.ts';
+import { clearUserCookieHeader } from '../../../../lib/login-gate.ts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

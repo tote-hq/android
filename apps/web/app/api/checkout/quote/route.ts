@@ -49,7 +49,7 @@ function isCart(c: unknown): c is Cart {
 
 export async function POST(req: Request): Promise<Response> {
   const user = await readSessionUser(req);
-  if (!user.ok && user.mismatch) return sessionMismatchResponse();
+  if (!user.ok && user.mismatch) return sessionMismatchResponse(req);
   if (!user.ok) return Response.json({ error: 'Iniciá sesión para pagar.' }, { status: 401 });
 
   const body = (await req.json().catch(() => null)) as { cart?: unknown; handoffUrl?: unknown; location?: unknown } | null;

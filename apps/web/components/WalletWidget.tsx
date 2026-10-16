@@ -164,6 +164,8 @@ export function WalletWidget() {
         <span className="topbar-unit">{mode.balanceUnit}</span>
         {loading ? <span className="sr-only">{copy.refreshing}</span> : null}
       </span>
+      {/* Beside the balance, so "test money" is always in sight, not only in the profile. */}
+      <ModeBadge network="devnet" />
 
       <button
         ref={profileButton}

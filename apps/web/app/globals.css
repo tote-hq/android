@@ -873,7 +873,8 @@ a:hover { color: var(--chg-arcilla); }
 .profile-who { display: flex; align-items: flex-start; gap: 12px; }
 .profile-who-text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; flex: 1; }
 .profile-email { font-size: 15px; overflow-wrap: anywhere; }
-.profile-addr-row { font-size: 12px; }
+.profile-addr-row { font-size: 12px; overflow-wrap: anywhere; }
+.profile-addr-row .wallet-addr { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-align: left; overflow-wrap: anywhere; }
 .avatar-static { cursor: default; width: 44px; height: 44px; font-size: 15px; }
 .avatar-static:hover,
 .avatar-static:active { background: var(--brand); }

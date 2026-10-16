@@ -28,7 +28,7 @@ export interface EscrowCopy {
   /** Saves the Día login to the profile (encrypted) before anything is locked. */
   diaSaveCta: string;
   diaSaving: string;
-  /** The run for a wallet that may not pay with our card: stops at payment, refunds, hands off. */
+  /** The run for a wallet that may not pay with our card: stops at payment, then settles or refunds. */
   demoNote: string;
   demoPayment: string;
   demoShoppingNote: string;
@@ -36,7 +36,6 @@ export interface EscrowCopy {
   demoDoneLead: string;
   /** A demo that failed before payment, which still refunds. */
   demoRefundedLead: string;
-  handoffCta: string;
   /** The receipt's amount for a finished demo: nothing was charged. */
   demoPaid: (amount: string) => string;
   postalNote: (profile: string, chat: string) => string;
@@ -98,13 +97,12 @@ const ES: EscrowCopy = {
   diaSaveCta: 'Guardar y seguir',
   diaSaving: 'Guardando…',
   demoNote:
-    'Modo prueba: vamos hasta el pago con tu changuito y te cobramos los USDC de prueba. Después terminás la compra en Día.',
+    'Modo prueba: hacemos la compra con tu changuito hasta el pago y te cobramos los USDC de prueba. No se paga nada en Día.',
   demoPayment: 'Llegamos al pago. En modo prueba no pagamos…',
   demoShoppingNote: 'Estamos recorriendo la compra paso a paso. Tarda unos segundos.',
   demoDoneTitle: 'Llegamos hasta el pago',
-  demoDoneLead: 'Cobramos tus USDC de prueba. Terminá la compra en Día con tu changuito.',
+  demoDoneLead: 'Cobramos tus USDC de prueba. Como es una prueba, el pedido no se paga en Día.',
   demoRefundedLead: 'No llegamos al pago. Tus USDC volvieron a tu saldo.',
-  handoffCta: 'Terminar en Día',
   demoPaid: (amount) => `${amount} USDC de prueba`,
   postalNote: (profile, chat) => `Enviamos a tu código postal ${profile}, el de tu perfil. Los precios del chat eran para ${chat}.`,
   escrowNote:
@@ -179,13 +177,12 @@ const EN: EscrowCopy = {
   profileOther: 'Edit my Día details',
   diaSaveCta: 'Save and continue',
   diaSaving: 'Saving…',
-  demoNote: 'Test mode: we take your basket up to payment and charge your test USDC. Then you finish the purchase at Día.',
+  demoNote: 'Test mode: we run the purchase with your basket up to payment and charge your test USDC. Nothing is paid at Día.',
   demoPayment: "We reached payment. In test mode we don't pay…",
   demoShoppingNote: "We're walking through the purchase step by step. It takes a few seconds.",
   demoDoneTitle: 'We reached payment',
-  demoDoneLead: 'We charged your test USDC. Finish the purchase at Día with your basket.',
+  demoDoneLead: "We charged your test USDC. Since it's a test, the order isn't paid at Día.",
   demoRefundedLead: "We didn't reach payment. Your USDC is back in your balance.",
-  handoffCta: 'Finish at Día',
   demoPaid: (amount) => `${amount} test USDC`,
   postalNote: (profile, chat) => `We deliver to ${profile}, your profile's postal code. Chat prices were for ${chat}.`,
   escrowNote:

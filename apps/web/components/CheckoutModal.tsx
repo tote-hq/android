@@ -494,14 +494,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
             <div className="ck-pay" data-testid="checkout-done-step">
               <h3 className="ck-ok">{demo ? copy.demoDoneTitle : copy.doneTitle}</h3>
               <p className="ck-lead">{demo ? copy.demoDoneLead : copy.doneLead(status?.storeOrderId ?? null)}</p>
-              {demo ? (
-                status?.handoffUrl ? (
-                  <a className="btn" href={status.handoffUrl} target="_blank" rel="noopener noreferrer" data-testid="checkout-handoff"
-                  onClick={() => track('dia_handoff', { stage: step })}>
-                    {copy.handoffCta} ↗
-                  </a>
-                ) : null
-              ) : (
+              {demo ? null : (
                 <p className="ck-note">{copy.doneNote}</p>
               )}
             </div>
@@ -519,20 +512,6 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
                 <p className="ck-note" data-testid="checkout-cause">
                   {copy.causeLabel} {status.error}
                 </p>
-              ) : null}
-              {/* The cart the shopper built in the chat, at the store: the way
-                  to finish when we could not, and the whole point of a demo. */}
-              {status?.handoffUrl ? (
-                <a
-                  className="btn"
-                  href={status.handoffUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="checkout-handoff"
-                  onClick={() => track('dia_handoff', { stage: step })}
-                >
-                  {copy.handoffCta} ↗
-                </a>
               ) : null}
             </div>
           ) : null}

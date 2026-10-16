@@ -1,0 +1,49 @@
+# The escrow program: compile check and Rust tests (none yet) on every PR
+# that touches it. Host build only (cargo check/test), not a full SBF build:
+# fast, cached, and enough to catch a program that no longer compiles.
+name: Anchor
+
+on:
+  pull_request:
+    paths:
+      - anchor/**
+      - .github/workflows/anchor.yml
+  push:
+    branches: [main]
+    paths:
+      - anchor/**
+      - .github/workflows/anchor.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anchor-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: cargo check + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: anchor
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: anchor
+
+      - name: cargo check
+        run: cargo check --locked
+
+      - name: cargo test
+        run: cargo test --locked

@@ -5,7 +5,8 @@
 # Anything else, including pull requests and frontend-only pushes, does not
 # start this workflow. Use workflow_dispatch and pick a suite.
 #
-# `landing` and `app` are smokes against production. `checkout` is not: it is
+# `landing` and `app` are smokes against production. `checkout` (currently
+# removed: no specs in the Solana build yet) is not: it is
 # the frame-checkout flow end to end against a `next dev` the runner starts
 # itself, with the agent, the ledger, the card issuer and the store scripted.
 # It cannot run against a deployment — the fixture it frames in the store's
@@ -84,7 +85,9 @@ on:
           - both
           - landing
           - app
-          - checkout
+          # `checkout` was removed: the Solana build has no checkout specs yet
+          # ("No tests found"). Re-add the option and the matrix branch below
+          # when payment E2E tests exist.
 
 permissions:
   contents: read
@@ -113,7 +116,6 @@ jobs:
           ${{ fromJSON(
             github.event.inputs.suite == 'landing' && '["landing"]' ||
             github.event.inputs.suite == 'app' && '["app"]' ||
-            github.event.inputs.suite == 'checkout' && '["checkout"]' ||
             '["landing","app"]') }}
     steps:
       - name: Checkout

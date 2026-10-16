@@ -16,7 +16,6 @@ import { explorerTx } from '../lib/solana.ts';
 import { useBalances } from '../lib/use-balances.ts';
 import { useWallet } from '../lib/use-wallet.ts';
 import { useLang } from './LangProvider';
-import { DiaHandoff } from './DiaHandoff';
 import { PasswordInput } from './PasswordInput';
 
 /**
@@ -302,17 +301,6 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
   const railAt = step === 'login' ? 0 : step === 'review' || step === 'locking' ? 1 : 2;
   const closeSig = status?.closeSig ?? null;
   const lockSig = status?.openSig ?? openSig;
-  // The hand-off block (components/DiaHandoff.tsx): on a finished demo and on
-  // any refund, so the shopper can finish the purchase at Día themselves.
-  const handoff = (
-    <DiaHandoff
-      copy={copy}
-      url={status?.handoffUrl ?? null}
-      lines={cart.lines.filter((l) => l.available).map((l) => ({ name: l.name, quantity: l.quantity }))}
-      total={cart.total.display}
-      onOpen={(via) => track('dia_handoff', { stage: step, via })}
-    />
-  );
 
   return (
     <div className="modal-backdrop" onClick={close}>
@@ -507,7 +495,12 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
               <h3 className="ck-ok">{demo ? copy.demoDoneTitle : copy.doneTitle}</h3>
               <p className="ck-lead">{demo ? copy.demoDoneLead : copy.doneLead(status?.storeOrderId ?? null)}</p>
               {demo ? (
-                handoff
+                status?.handoffUrl ? (
+                  <a className="btn" href={status.handoffUrl} target="_blank" rel="noopener noreferrer" data-testid="checkout-handoff"
+                  onClick={() => track('dia_handoff', { stage: step })}>
+                    {copy.handoffCta} ↗
+                  </a>
+                ) : null
               ) : (
                 <p className="ck-note">{copy.doneNote}</p>
               )}
@@ -529,7 +522,18 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
               ) : null}
               {/* The cart the shopper built in the chat, at the store: the way
                   to finish when we could not, and the whole point of a demo. */}
-              {handoff}
+              {status?.handoffUrl ? (
+                <a
+                  className="btn"
+                  href={status.handoffUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="checkout-handoff"
+                  onClick={() => track('dia_handoff', { stage: step })}
+                >
+                  {copy.handoffCta} ↗
+                </a>
+              ) : null}
             </div>
           ) : null}
 

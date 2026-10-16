@@ -2156,10 +2156,6 @@ a:hover { color: var(--chg-arcilla); }
 }
 .ck-alert-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--warn-ink); }
 
-/* Hand-off to Día (components/DiaHandoff.tsx). */
-.ck-handoff { display: flex; flex-direction: column; gap: 8px; }
-.ck-handoff-steps { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.5; }
-.ck-handoff-list ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.5; max-height: 160px; overflow-y: auto; }
 
 /* First-visit beta explainer (components/BetaOnboarding.tsx). */
 .onb {

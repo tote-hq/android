@@ -66,20 +66,3 @@ describe('resolver alert', () => {
   });
 });
 
-describe('Día hand-off', () => {
-  it('builds a plain list to paste', () => {
-    const text = escrowCopy('es').handoffText(
-      [
-        { name: 'Leche Día 1 L', quantity: 2 },
-        { name: 'Pan lactal', quantity: 1 },
-      ],
-      '$ 5.000,00',
-    );
-    assert.equal(text, '2 x Leche Día 1 L\n1 x Pan lactal\nTotal: $ 5.000,00');
-  });
-
-  it('says the shopper finishes at Día themselves', () => {
-    assert.match(escrowCopy('es').handoffTitle, /vos en Día/);
-    assert.match(escrowCopy('es').handoffWhy, /persona/);
-  });
-});

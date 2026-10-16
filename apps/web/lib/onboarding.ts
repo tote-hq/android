@@ -2,7 +2,7 @@ import type { Lang } from './lang.ts';
 
 /**
  * The first-visit explainer for beta testers: what this is, and the five
- * things they will do. Shown once per browser, dismissed into localStorage.
+ * steps of a purchase. Shown once per browser, dismissed into localStorage.
  *
  * An inline card above the chat, not a modal: it must never cover the
  * "Iniciar sesión" button or the composer (the production smokes in e2e/ click
@@ -24,7 +24,7 @@ const ES: OnboardingCopy = {
     'Iniciá sesión y cargá USDC de prueba desde el faucet. Es gratis.',
     'Contale a Changuito qué necesitás y armá tu changuito con él.',
     'Pagás con esos USDC, que quedan guardados en un escrow hasta que se resuelve la compra.',
-    'El final lo hacés vos en Día: te pasamos el carrito listo y confirmás la compra ahí.',
+    'Changuito hace la compra en Día por vos y, cuando se confirma, se libera el pago.',
   ],
   note: 'Si algo se traba, tus USDC no se pierden: vuelven solos a tu billetera.',
   dismiss: 'Dale, empecemos',
@@ -37,7 +37,7 @@ const EN: OnboardingCopy = {
     'Sign in and get test USDC from the faucet. It is free.',
     'Tell Changuito what you need and build your basket together.',
     'You pay with that USDC, which sits in an escrow until the purchase is settled.',
-    'You finish at Día: we hand you the ready cart and you confirm the purchase there.',
+    'Changuito places the order at Día for you, and once it goes through the payment is released.',
   ],
   note: "If something gets stuck, your USDC isn't lost: it goes back to your wallet on its own.",
   dismiss: "OK, let's go",

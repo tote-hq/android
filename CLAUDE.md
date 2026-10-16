@@ -384,8 +384,7 @@ gets placed. What it was protecting is kept in the rules below.*
   `lib/shared-card.ts`) — the in-process mock even with `sandbox_mock` off,
   no Día login asked, stopping at payment (`mock-h-…`, `not_attempted`).
   Reaching payment counts as complete: the escrow **settles** to the
-  treasury (devnet USDC, receipt basis `demo-reached-payment`), the modal
-  hands off to the chat's cart link ("Terminar en Día"), and Listo closes
+  treasury (devnet USDC, receipt basis `demo-reached-payment`), and Listo closes
   the chat as completed with the amount reading "USDC de prueba". A demo
   that fails before payment still refunds. Decided at the quote, so the modal says which run it
   is, and again at the start, which is the check that counts; an unreadable

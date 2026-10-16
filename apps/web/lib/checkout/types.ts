@@ -52,7 +52,15 @@ export interface StatusResponse {
   error: string | null;
   /** Which run this was (QuoteResponse `mode`); null on records from before it existed. */
   mode: 'live' | 'demo' | 'mock' | null;
+  /**
+   * Something the shopper should know while the order is still open
+   * (lib/checkout/resolver-alert.ts): the resolver could not settle or refund,
+   * or the run is taking far longer than it should. Null when all is well.
+   */
+  alert: CheckoutAlert | null;
 }
+
+export type CheckoutAlert = 'resolver_failed' | 'stuck';
 
 export interface OrderLine {
   orderId: string;

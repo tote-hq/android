@@ -24,6 +24,7 @@ import { createHash } from 'node:crypto';
 
 import { readOrder, refundOrder, settleOrder } from '../../../../lib/checkout/escrow-server.ts';
 import { refundReason } from '../../../../lib/checkout/failure.ts';
+import { checkoutAlert, resolverFailureCode, resolverLogLine } from '../../../../lib/checkout/resolver-alert.ts';
 import { readJob } from '../../../../lib/checkout/sandbox.ts';
 import { checkoutStore, type CheckoutRecord } from '../../../../lib/checkout/store.ts';
 import type { StatusResponse } from '../../../../lib/checkout/types.ts';
@@ -50,8 +51,17 @@ function reply(rec: CheckoutRecord, stage: StatusResponse['stage']): Response {
     amountDisplay: (rec.amountCents / 100).toFixed(2),
     error: rec.error ?? null,
     mode: rec.mode ?? null,
+    alert: stage === 'shopping' ? checkoutAlert(rec, Date.now()) : null,
   };
   return Response.json(res, { headers: { 'cache-control': 'no-store' } });
+}
+
+/** Log an alert once per order, the first poll that sees it. No PII: lib/checkout/resolver-alert.ts. */
+function noteAlert(rec: CheckoutRecord): void {
+  const alert = checkoutAlert(rec, Date.now());
+  if (!alert || rec.alertLogged === alert) return;
+  rec.alertLogged = alert;
+  console.error('[checkout/status]', JSON.stringify(resolverLogLine('checkout_alert', rec.orderId, alert, rec.closeFailures)));
 }
 
 export async function GET(req: Request): Promise<Response> {
@@ -104,6 +114,7 @@ export async function GET(req: Request): Promise<Response> {
   }
 
   if (!finished || closing.has(orderId)) {
+    noteAlert(rec);
     await store.set(rec);
     return reply(rec, 'shopping');
   }
@@ -134,7 +145,9 @@ export async function GET(req: Request): Promise<Response> {
     await store.set(rec);
     return reply(rec, rec.outcome === 'settled' ? 'done' : 'refunded');
   } catch (err) {
-    console.error('[checkout/status] close', err);
+    rec.closeFailures = (rec.closeFailures ?? 0) + 1;
+    console.error('[checkout/status]', JSON.stringify(resolverLogLine('resolver_close_failed', orderId, resolverFailureCode(err), rec.closeFailures)));
+    noteAlert(rec);
     await store.set(rec);
     return reply(rec, 'shopping');
   } finally {

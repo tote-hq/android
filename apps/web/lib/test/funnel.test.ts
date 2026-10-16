@@ -9,8 +9,8 @@ import { FUNNEL_EVENTS, lockFailureCode, refundFailureCode } from '../funnel.ts'
 const src = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
 describe('beta funnel', () => {
-  it('names exactly the eight beta events', () => {
-    assert.deepEqual([...FUNNEL_EVENTS], ['login', 'faucet', 'cart_built', 'pay_open', 'settle', 'refund', 'failure', 'dia_handoff']);
+  it('names exactly the seven beta events', () => {
+    assert.deepEqual([...FUNNEL_EVENTS], ['login', 'faucet', 'cart_built', 'pay_open', 'settle', 'refund', 'failure']);
   });
 
   it('every event is wired somewhere in the shopper UI', () => {

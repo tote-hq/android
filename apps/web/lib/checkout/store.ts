@@ -59,6 +59,12 @@ export interface CheckoutRecord {
   /** Día's order number, when the order was placed. */
   storeOrderId?: string;
   error?: string;
+  /** When the sandbox job was started (ms). The stuck alert counts from here. */
+  startedAt?: number;
+  /** Failed settle/refund attempts by the resolver, for the alert (lib/checkout/resolver-alert.ts). */
+  closeFailures?: number;
+  /** Which alert has already been logged server-side, so a poll every 3 s logs it once. */
+  alertLogged?: 'resolver_failed' | 'stuck';
 }
 
 const TTL_SECONDS = 60 * 60 * 24;

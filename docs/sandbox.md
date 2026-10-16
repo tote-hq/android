@@ -315,8 +315,7 @@ chromium`, then `uvicorn server:app` on `$PORT` (default 8080).
    `SANDBOX_TOKEN`, and `npm run config -- set sandbox_mock false`.
 5. Make sure `shared_card` has the card (a `devnet` or `mainnet` row), and
    allow the wallets that may buy with it: `npm run members -- add <solana
-   address> <who>`. Everyone else gets the demo run: up to payment, settled,
-   and a "Terminar en Día" link.
+   address> <who>`. Everyone else gets the demo run: up to payment, then settled.
 
 ## Run locally
 

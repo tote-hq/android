@@ -126,6 +126,7 @@ export async function POST(req: Request): Promise<Response> {
       rec.jobId = 'none';
     }
     rec.phase = 'queued';
+    rec.startedAt = Date.now();
     await store.set(rec);
   }
 
@@ -141,6 +142,7 @@ export async function POST(req: Request): Promise<Response> {
     amountDisplay: (rec.amountCents / 100).toFixed(2),
     error: rec.error ?? null,
     mode: rec.mode ?? null,
+    alert: null,
   };
   return Response.json(res);
 }

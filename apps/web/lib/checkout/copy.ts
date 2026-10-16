@@ -28,7 +28,7 @@ export interface EscrowCopy {
   /** Saves the Día login to the profile (encrypted) before anything is locked. */
   diaSaveCta: string;
   diaSaving: string;
-  /** The run for a wallet that may not pay with our card: stops at payment, refunds, hands off. */
+  /** The run for a wallet that may not pay with our card: stops at payment, then settles or refunds. */
   demoNote: string;
   demoPayment: string;
   demoShoppingNote: string;
@@ -36,7 +36,6 @@ export interface EscrowCopy {
   demoDoneLead: string;
   /** A demo that failed before payment, which still refunds. */
   demoRefundedLead: string;
-  handoffCta: string;
   /** The receipt's amount for a finished demo: nothing was charged. */
   demoPaid: (amount: string) => string;
   postalNote: (profile: string, chat: string) => string;
@@ -65,6 +64,9 @@ export interface EscrowCopy {
   close: string;
   finish: string;
   failed: string;
+  /** While the order is still open and something is off (lib/checkout/resolver-alert.ts). */
+  alertTitle: Record<'resolver_failed' | 'stuck', string>;
+  alertBody: Record<'resolver_failed' | 'stuck', string>;
 }
 
 const ES: EscrowCopy = {
@@ -95,13 +97,12 @@ const ES: EscrowCopy = {
   diaSaveCta: 'Guardar y seguir',
   diaSaving: 'Guardando…',
   demoNote:
-    'Modo prueba: vamos hasta el pago con tu changuito y te cobramos los USDC de prueba. Después terminás la compra en Día.',
+    'Modo prueba: hacemos la compra con tu changuito hasta el pago y te cobramos los USDC de prueba. No se paga nada en Día.',
   demoPayment: 'Llegamos al pago. En modo prueba no pagamos…',
   demoShoppingNote: 'Estamos recorriendo la compra paso a paso. Tarda unos segundos.',
   demoDoneTitle: 'Llegamos hasta el pago',
-  demoDoneLead: 'Cobramos tus USDC de prueba. Terminá la compra en Día con tu changuito.',
+  demoDoneLead: 'Cobramos tus USDC de prueba. Como es una prueba, el pedido no se paga en Día.',
   demoRefundedLead: 'No llegamos al pago. Tus USDC volvieron a tu saldo.',
-  handoffCta: 'Terminar en Día',
   demoPaid: (amount) => `${amount} USDC de prueba`,
   postalNote: (profile, chat) => `Enviamos a tu código postal ${profile}, el de tu perfil. Los precios del chat eran para ${chat}.`,
   escrowNote:
@@ -137,6 +138,16 @@ const ES: EscrowCopy = {
   close: 'Cerrar',
   finish: 'Listo',
   failed: 'Algo falló. Probá de nuevo.',
+  alertTitle: {
+    resolver_failed: 'Estamos trabados cerrando tu pedido',
+    stuck: 'Esto está tardando más de la cuenta',
+  },
+  alertBody: {
+    resolver_failed:
+      'La compra terminó, pero no pudimos liberar o devolver el escrow. Lo seguimos intentando solo y ya nos llegó el aviso. Tus USDC siguen bloqueados en Solana, no se pierden: si no se resuelve, vuelven a tu billetera cuando vence el pedido (1 hora).',
+    stuck:
+      'La compra lleva más de 15 minutos sin terminar. Tus USDC siguen seguros en el escrow y nos llegó el aviso. Podés cerrar esta ventana: si no se resuelve, vuelven a tu billetera cuando vence el pedido (1 hora).',
+  },
 };
 
 const EN: EscrowCopy = {
@@ -166,13 +177,12 @@ const EN: EscrowCopy = {
   profileOther: 'Edit my Día details',
   diaSaveCta: 'Save and continue',
   diaSaving: 'Saving…',
-  demoNote: 'Test mode: we take your basket up to payment and charge your test USDC. Then you finish the purchase at Día.',
+  demoNote: 'Test mode: we run the purchase with your basket up to payment and charge your test USDC. Nothing is paid at Día.',
   demoPayment: "We reached payment. In test mode we don't pay…",
   demoShoppingNote: "We're walking through the purchase step by step. It takes a few seconds.",
   demoDoneTitle: 'We reached payment',
-  demoDoneLead: 'We charged your test USDC. Finish the purchase at Día with your basket.',
+  demoDoneLead: "We charged your test USDC. Since it's a test, the order isn't paid at Día.",
   demoRefundedLead: "We didn't reach payment. Your USDC is back in your balance.",
-  handoffCta: 'Finish at Día',
   demoPaid: (amount) => `${amount} test USDC`,
   postalNote: (profile, chat) => `We deliver to ${profile}, your profile's postal code. Chat prices were for ${chat}.`,
   escrowNote:
@@ -208,6 +218,16 @@ const EN: EscrowCopy = {
   close: 'Close',
   finish: 'Done',
   failed: 'Something failed. Try again.',
+  alertTitle: {
+    resolver_failed: "We're stuck closing your order",
+    stuck: 'This is taking longer than it should',
+  },
+  alertBody: {
+    resolver_failed:
+      "The purchase finished, but we couldn't release or refund the escrow. We keep retrying on our own and we've been alerted. Your USDC is still locked on Solana, not lost: if this doesn't clear, it goes back to your wallet when the order expires (1 hour).",
+    stuck:
+      "The purchase has been running for over 15 minutes. Your USDC is safe in the escrow and we've been alerted. You can close this window: if it doesn't clear, it goes back to your wallet when the order expires (1 hour).",
+  },
 };
 
 export function escrowCopy(lang: Lang): EscrowCopy {

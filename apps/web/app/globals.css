@@ -2145,3 +2145,29 @@ a:hover { color: var(--chg-arcilla); }
   box-shadow: 0 8px 24px rgba(42, 26, 20, 0.16);
 }
 .toast.is-error { color: var(--warn-ink); }
+
+/* Resolver alert in the checkout (lib/checkout/resolver-alert.ts). */
+.ck-alert {
+  border-left: 3px solid var(--warn);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ck-alert-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--warn-ink); }
+
+
+/* First-visit beta explainer (components/BetaOnboarding.tsx). */
+.onb {
+  border: 1px solid rgba(42, 26, 20, 0.12);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.onb-title { margin: 0; font-size: 16px; }
+.onb-steps { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.55; }
+.onb-note { margin: 0; font-size: 13px; color: var(--muted); }
+.onb-actions { display: flex; justify-content: flex-end; }

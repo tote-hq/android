@@ -1,8 +1,8 @@
 /**
  * The beta funnel, as short event names on top of lib/analytics.ts.
  *
- * login → faucet → cart_built → pay_open → settle | refund, with failure and
- * dia_handoff along the way. Props are codes only: no email, DNI, password,
+ * login → faucet → cart_built → pay_open → settle | refund, with failure
+ * along the way. Props are codes only: no email, DNI, password,
  * address, amount or free text ever goes out (sanitizeProps drops those too).
  */
 
@@ -14,7 +14,6 @@ export const FUNNEL_EVENTS = [
   'settle',
   'refund',
   'failure',
-  'dia_handoff',
 ] as const;
 
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];

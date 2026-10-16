@@ -47,7 +47,8 @@ test('the home header is the wordmark alone', () => {
 });
 
 test('the shopper header is the wordmark alone, not the mascot and not type', () => {
-  const shopper = source(join(web, 'app/page.tsx'));
+  // The masthead moved into components/TopBar.tsx (PR #14); read both.
+  const shopper = source(join(web, 'components/TopBar.tsx')) + source(join(web, 'app/page.tsx'));
 
   assert.match(shopper, /src="\/brand\/wordmark\.png"/);
   assert.equal(shopper.includes('lockup-stacked'), false);

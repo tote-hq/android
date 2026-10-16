@@ -23,7 +23,7 @@ import { describe, it } from 'node:test';
  */
 const source = readFileSync(join(import.meta.dirname, '../../components/CheckoutModal.tsx'), 'utf8');
 
-describe('the one-click deposit', () => {
+describe('the one-click deposit', { skip: 'Stellar-era rule (pre-Solana port a842ca7); the Solana CheckoutModal pays through the escrow open() and has no memo/G-address deposit' }, () => {
   it('RULE: attaches the código to the payment as MEMO_TEXT', () => {
     // `matchDeposit` refuses anything whose `memo_type` is not `text` or whose
     // memo is not this exact string. Drop this and the poll waits for ever on

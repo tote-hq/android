@@ -10,10 +10,6 @@ import type { NetworkId } from './deployments.ts';
  * same cart, or `basket_hash` proves nothing.
  */
 
-/** The contract's own bounds — `contracts/escrow/src/lib.rs`. */
-export const MIN_TIMEOUT_SECS = 300;
-export const MAX_TIMEOUT_SECS = 30 * 24 * 60 * 60;
-
 /**
  * An hour to get the basket through the store's checkout. Long enough that a
  * slow pickup does not strand the money, short enough that a user who walks
@@ -32,15 +28,6 @@ export function fromHex(hex: string): Uint8Array {
   const out = new Uint8Array(hex.length / 2);
   for (let i = 0; i < out.length; i++) out[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
   return out;
-}
-
-/** Pollar's `bytes` ScVal arg is base64, not hex. */
-export function toBase64(bytes: Uint8Array): string {
-  let s = '';
-  // Not `String.fromCharCode(...bytes)`: fine for 32 bytes, a stack overflow
-  // for anything large, and this function should not care which it was given.
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s);
 }
 
 /* ------------------------------------------------------------- the basket */
@@ -94,81 +81,6 @@ export function basketHash(cart: Cart): Promise<Uint8Array> {
  */
 export function newOrderId(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(32));
-}
-
-/* ------------------------------------------------------------- the args */
-
-/** The subset of Pollar's ScVal argument union that `escrow.open` needs. */
-export type ScValArg =
-  | { type: 'address'; value: string }
-  | { type: 'bytes'; value: string }
-  | { type: 'i128'; value: string }
-  | { type: 'u64'; value: string };
-
-export interface OpenArgs {
-  buyer: string;
-  orderId: Uint8Array;
-  /** Token units, 7 decimals. Not cents. */
-  amountUnits: bigint;
-  basketHash: Uint8Array;
-  timeoutSecs?: number;
-}
-
-/**
- * Positional, in the order the contract declares them:
- * `open(buyer, order_id, amount, basket_hash, timeout_secs)`.
- *
- * `order.test.ts` reads that signature out of lib.rs and checks it against
- * this list, because the two swapped `BytesN<32>` arguments are the kind of
- * mistake that type-checks, deploys, and then settles the wrong basket.
- */
-export function openArgs({
-  buyer,
-  orderId,
-  amountUnits,
-  basketHash: basket,
-  timeoutSecs = DEFAULT_TIMEOUT_SECS,
-}: OpenArgs): ScValArg[] {
-  if (orderId.length !== 32) throw new Error(`order_id must be 32 bytes, got ${orderId.length}`);
-  if (basket.length !== 32) throw new Error(`basket_hash must be 32 bytes, got ${basket.length}`);
-  if (amountUnits <= 0n) throw new Error(`amount must be positive, got ${amountUnits}`);
-  if (timeoutSecs < MIN_TIMEOUT_SECS || timeoutSecs > MAX_TIMEOUT_SECS) {
-    throw new Error(`timeout_secs must be ${MIN_TIMEOUT_SECS}–${MAX_TIMEOUT_SECS}, got ${timeoutSecs}`);
-  }
-  return [
-    { type: 'address', value: buyer },
-    { type: 'bytes', value: toBase64(orderId) },
-    { type: 'i128', value: amountUnits.toString() },
-    { type: 'bytes', value: toBase64(basket) },
-    { type: 'u64', value: String(timeoutSecs) },
-  ];
-}
-
-/**
- * What the browser keeps after `open` succeeds. Hex rather than bytes so it
- * survives `JSON.stringify` on its way to /api/settle.
- */
-export interface OpenedOrder {
-  orderId: string;
-  /** The wallet that signed `open`. Only it may confirm or refund. */
-  buyer: string;
-  basketHash: string;
-  amountUnits: string;
-  /** The `escrow.open` transaction. */
-  hash: string;
-  retailer: string;
-  cartId: string;
-  totalDisplay: string;
-  handoffUrl?: string;
-  /**
-   * Which chain this order lives on, fixed at `open`.
-   *
-   * On the order rather than read from the mode control, because the two can
-   * disagree: an order id exists in exactly one contract, and somebody who
-   * flips the mode with money still held must not send its settle to the
-   * other chain — where it would come back as "no such order".
-   */
-  network: NetworkId;
 }
 
 /* ------------------------------------------------------------ the receipt */

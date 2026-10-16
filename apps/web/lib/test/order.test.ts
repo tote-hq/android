@@ -11,11 +11,7 @@ import {
   receiptHash,
   DEFAULT_TIMEOUT_SECS,
   fromHex,
-  MAX_TIMEOUT_SECS,
-  MIN_TIMEOUT_SECS,
   newOrderId,
-  openArgs,
-  toBase64,
   toHex,
 } from '../order.ts';
 
@@ -42,7 +38,7 @@ const cart = (over: Partial<Cart> = {}): Cart => ({
 
 const bytes = (n: number, fill = 7) => new Uint8Array(n).fill(fill);
 
-describe('hex and base64', () => {
+describe('hex', () => {
   it('round-trips through hex', () => {
     const id = newOrderId();
     assert.deepEqual(fromHex(toHex(id)), id);
@@ -50,10 +46,6 @@ describe('hex and base64', () => {
 
   it('pads a low byte rather than dropping a nibble', () => {
     assert.equal(toHex(new Uint8Array([0, 1, 255])), '0001ff');
-  });
-
-  it('encodes base64 the way Pollar reads a `bytes` arg', () => {
-    assert.equal(toBase64(new Uint8Array([0, 1, 2, 3])), 'AAECAw==');
   });
 });
 
@@ -114,86 +106,6 @@ describe('basketHash', () => {
     for (const [what, c] of Object.entries(variants)) {
       assert.notEqual(toHex(await basketHash(c)), base, `${what} left the basket hash unchanged`);
     }
-  });
-});
-
-describe('openArgs', () => {
-  const ok = {
-    buyer: 'GBGMPRHU3NW3BCXUNDNC7VSYQKS6FZKWFHSGEHHMR3G3TZOUWEDBHTFK',
-    orderId: bytes(32, 1),
-    amountUnits: 250_000_000n,
-    basketHash: bytes(32, 2),
-  };
-
-  it('encodes each argument as the type Soroban expects', () => {
-    const args = openArgs(ok);
-    assert.deepEqual(
-      args.map((a) => a.type),
-      ['address', 'bytes', 'i128', 'bytes', 'u64'],
-    );
-    assert.equal(args[0].value, ok.buyer);
-    assert.equal(args[1].value, toBase64(ok.orderId));
-    // i128 travels as a string: 2^53 is not far above a sensible balance in
-    // 7-decimal units, and JSON numbers stop being exact there.
-    assert.equal(args[2].value, '250000000');
-    assert.equal(args[4].value, String(DEFAULT_TIMEOUT_SECS));
-  });
-
-  it('defaults to a timeout the contract will accept', () => {
-    assert.ok(DEFAULT_TIMEOUT_SECS >= MIN_TIMEOUT_SECS && DEFAULT_TIMEOUT_SECS <= MAX_TIMEOUT_SECS);
-  });
-
-  it('refuses a hash that is not 32 bytes rather than letting the ledger say no', () => {
-    assert.throws(() => openArgs({ ...ok, orderId: bytes(31) }), /32 bytes/);
-    assert.throws(() => openArgs({ ...ok, basketHash: bytes(33) }), /32 bytes/);
-  });
-
-  it('refuses a zero or negative amount', () => {
-    assert.throws(() => openArgs({ ...ok, amountUnits: 0n }), /positive/);
-    assert.throws(() => openArgs({ ...ok, amountUnits: -1n }), /positive/);
-  });
-
-  it('refuses a timeout outside the contract bounds', () => {
-    assert.throws(() => openArgs({ ...ok, timeoutSecs: MIN_TIMEOUT_SECS - 1 }), /timeout_secs/);
-    assert.throws(() => openArgs({ ...ok, timeoutSecs: MAX_TIMEOUT_SECS + 1 }), /timeout_secs/);
-  });
-});
-
-describe('RULE: the args match the contract they are sent to', { skip: 'Stellar-era rule (pre-Solana port a842ca7); reads contracts/escrow/src/lib.rs (Soroban), which is not in this repo; openArgs is unused by the Solana app' }, () => {
-  it('open() still takes (buyer, order_id, amount, basket_hash, timeout_secs)', async () => {
-    // Soroban arguments are positional, and two of them are BytesN<32>. Swap
-    // order_id and basket_hash and everything type-checks, deploys, and then
-    // settles against a basket nobody approved. Nothing else catches that, so
-    // this reads the signature out of the contract and compares it.
-    const src = await readFile(new URL('../../../../contracts/escrow/src/lib.rs', import.meta.url), 'utf8');
-    const sig = /pub fn open\(\s*env: Env,([^)]*)\)/.exec(src);
-    assert.ok(sig, 'could not find `pub fn open` in the escrow contract');
-
-    const declared = sig[1]
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .map((p) => p.split(':').map((x) => x.trim()));
-
-    assert.deepEqual(
-      declared.map(([name]) => name),
-      ['buyer', 'order_id', 'amount', 'basket_hash', 'timeout_secs'],
-    );
-
-    // And the Rust types the encoder is claiming to satisfy.
-    assert.deepEqual(
-      declared.map(([, type]) => type),
-      ['Address', 'BytesN<32>', 'i128', 'BytesN<32>', 'u64'],
-    );
-
-    const bounds = /const MIN_TIMEOUT: u64 = (\d+);[\s\S]*?const MAX_TIMEOUT: u64 = ([^;]+);/.exec(src);
-    assert.ok(bounds, 'could not find the timeout bounds');
-    assert.equal(Number(bounds[1]), MIN_TIMEOUT_SECS);
-    // `30 * 24 * 60 * 60` — evaluated rather than string-matched.
-    assert.equal(
-      bounds[2].split('*').reduce((n, x) => n * Number(x.trim()), 1),
-      MAX_TIMEOUT_SECS,
-    );
   });
 });
 

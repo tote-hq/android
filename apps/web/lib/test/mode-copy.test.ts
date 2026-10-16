@@ -84,15 +84,12 @@ describe('mode copy', () => {
     assert.match(BALANCE.unavailable, /de nuevo/);
   });
 
-  it('names the consequence of leaving preview, not the mechanism', { skip: 'Privy port changed the masthead to "Iniciar sesión"; copy rule pending a product decision' }, () => {
-    // "Iniciá sesión" would be the mechanism. A person who agrees to log in
-    // has not agreed that the next payment comes out of their own pocket,
-    // and that is the only thing that actually changes.
-    assert.match(PREVIEW_MASTHEAD.action, /modo real/);
-    assert.doesNotMatch(PREVIEW_MASTHEAD.action, /sesión|cuenta/i);
+  it('names the way out of preview plainly: signing in', () => {
+    // Decision (Oct 2026): with Privy there is one way in, and it is a login.
+    assert.equal(PREVIEW_MASTHEAD.action, 'Iniciar sesión');
   });
 
-  it('RULE: preview says whose money it is, because it is not theirs', { skip: 'Privy port changed the masthead hint; copy rule pending a product decision' }, () => {
-    assert.match(PREVIEW_MASTHEAD.hint, /nuestra plata/);
+  it('RULE: preview tells a guest how to pay', () => {
+    assert.match(PREVIEW_MASTHEAD.hint, /Entrá con tu email/);
   });
 });

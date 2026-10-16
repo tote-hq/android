@@ -509,6 +509,8 @@ export async function ordersOf(net: NetworkId, address: string, limit = 50): Pro
  * request — so persisting it would surface the failure one turn later, on a
  * turn that did nothing wrong.
  */
+// The upsert only updates a row the same wallet owns: a signed-in shopper who
+// sends someone else's chat id writes nothing rather than overwriting it.
 export async function saveChat(c: {
   id: string;
   network: NetworkId;
@@ -522,7 +524,8 @@ export async function saveChat(c: {
             ${db().json(c.transcript as never)})
     on conflict (id) do update
        set transcript = excluded.transcript,
-           title      = coalesce(chat.title, excluded.title)`;
+           title      = coalesce(chat.title, excluded.title)
+     where chat.address = excluded.address`;
 }
 
 /**

@@ -3,12 +3,12 @@ import { beforeEach, describe, it } from 'node:test';
 
 import { ensureUserCookie, forgetUserCookie } from '../session-login.ts';
 
-const ADDRESS = 'GA' + 'B'.repeat(54);
+const ADDRESS = 'So1anaTestAddress1111111111111111111111111';
 
 /** A wallet that signs everything with a fixed stand-in signature. */
-const sign = async (_message: string) => 'c2lnbmVk';
+const sign = async () => 'c2lnbmVk';
 /** A wallet that will not sign: a passkey smart wallet, or a declined prompt. */
-const refuse = async (_message: string) => null;
+const refuse = async () => null;
 
 /** Swap in a fetch that counts calls and resolves when we say so. */
 function stubFetch(reply: () => Promise<Response>) {
@@ -31,16 +31,16 @@ describe('ensureUserCookie', () => {
     const [a, b] = await Promise.all([ensureUserCookie(ADDRESS, sign), ensureUserCookie(ADDRESS, sign)]);
     assert.equal(calls.length, 1);
     assert.deepEqual([a, b], [true, true]);
-    assert.match(calls[0]!, /GAB/);
+    assert.deepEqual(JSON.parse(calls[0]!), { token: 'c2lnbmVk' });
   });
 
-  it('sends a login proof with the address, never the address alone', async () => {
+  it('sends only the Privy token, never the address on trust', async () => {
+    // Solana build: the server reads the wallet from Privy itself.
     const calls = stubFetch(ok);
     await ensureUserCookie(ADDRESS, sign);
-    const body = JSON.parse(calls[0]!) as { address: string; proof?: { message: string; signature: string } };
-    assert.equal(body.address, ADDRESS);
-    assert.equal(body.proof?.signature, 'c2lnbmVk');
-    assert.match(body.proof?.message ?? '', new RegExp(`^Changuito: iniciar sesión con ${ADDRESS} \\(`));
+    const body = JSON.parse(calls[0]!) as Record<string, unknown>;
+    assert.deepEqual(Object.keys(body), ['token']);
+    assert.equal(body.token, 'c2lnbmVk');
   });
 
   it('does not call the server when the wallet will not sign', async () => {

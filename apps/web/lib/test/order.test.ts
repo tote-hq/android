@@ -159,7 +159,7 @@ describe('openArgs', () => {
   });
 });
 
-describe('RULE: the args match the contract they are sent to', () => {
+describe('RULE: the args match the contract they are sent to', { skip: 'Stellar-era rule (pre-Solana port a842ca7); reads contracts/escrow/src/lib.rs (Soroban), which is not in this repo; openArgs is unused by the Solana app' }, () => {
   it('open() still takes (buyer, order_id, amount, basket_hash, timeout_secs)', async () => {
     // Soroban arguments are positional, and two of them are BytesN<32>. Swap
     // order_id and basket_hash and everything type-checks, deploys, and then

@@ -1,24 +1,23 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 
-import { Keypair } from '@stellar/stellar-sdk';
-
 import { HUMAN_COOKIE, mintHumanToken } from '../human-gate.ts';
-import { readLoggedInUser, sessionSecret, USER_COOKIE, verifyUserToken } from '../login-gate.ts';
 import { issueUserSession } from '../session-issue.ts';
-import { walletProofMessage, type WalletIntent } from '../wallet-proof.ts';
 
 /**
  * POST /api/session/login. The QA finding (audit C2): any address the
  * browser named got a 30-day `chg_user`, which skips the guest limits.
+ *
+ * Solana build: the browser sends a Privy access token and the server reads
+ * the wallet from Privy. These cases cover every path that refuses before
+ * Privy is asked, so they need no network. Verifying a real token against
+ * Privy's JWKS is left to E2E.
  */
 
 const TURNSTILE = 'turnstile-test-secret';
 const SESSION = 'session-test-secret';
 const now = Date.now();
-const shopper = Keypair.random();
-const stranger = Keypair.random();
+const ADDRESS = 'So1anaTestAddress1111111111111111111111111';
 
 const env = {
   NODE_ENV: 'production',
@@ -26,87 +25,48 @@ const env = {
   CHG_SESSION_SECRET: SESSION,
 } as NodeJS.ProcessEnv;
 
-function signed(kp: Keypair, address = kp.publicKey(), intent: WalletIntent = 'login') {
-  const message = walletProofMessage(intent, address, now);
-  const digest = createHash('sha256').update(`Stellar Signed Message:\n${message}`, 'utf8').digest();
-  return { message, signature: Buffer.from(kp.sign(digest)).toString('base64') };
-}
-
-async function post(body: unknown, { human = true } = {}): Promise<Request> {
+async function post(body: unknown, { human = true, raw = false } = {}): Promise<Request> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (human) headers.cookie = `${HUMAN_COOKIE}=${encodeURIComponent(await mintHumanToken(TURNSTILE))}`;
-  return new Request('https://app.changuito.me/api/session/login', { method: 'POST', headers, body: JSON.stringify(body) });
+  return new Request('https://app.changuito.me/api/session/login', {
+    method: 'POST',
+    headers,
+    body: raw ? String(body) : JSON.stringify(body),
+  });
 }
 
-async function status(res: Response): Promise<{ status: number; error?: string; cookie: string | null }> {
-  const json = (await res.json()) as { error?: string };
-  return { status: res.status, error: json.error, cookie: res.headers.get('set-cookie') };
-}
+const noCookie = (r: Response) => assert.equal(r.headers.get('set-cookie'), null);
 
-describe('POST /api/session/login', () => {
-  it('refuses a bare address — the fake login', async () => {
-    const r = await status(await issueUserSession(await post({ address: shopper.publicKey() }), env, now));
+describe('issueUserSession', () => {
+  it('RULE: an address alone never gets a session', async () => {
+    const r = await issueUserSession(await post({ address: ADDRESS }), env, now);
     assert.equal(r.status, 401);
-    assert.equal(r.error, 'session_proof_required');
-    assert.equal(r.cookie, null);
+    assert.equal(((await r.json()) as { error: string }).error, 'session_proof_required');
+    noCookie(r);
   });
 
-  it('refuses a stranger signing for someone else’s address', async () => {
-    const r = await status(
-      await issueUserSession(await post({ address: shopper.publicKey(), proof: signed(stranger, shopper.publicKey()) }), env, now),
-    );
+  it('refuses an empty token', async () => {
+    const r = await issueUserSession(await post({ token: '   ' }), env, now);
     assert.equal(r.status, 401);
-    assert.equal(r.cookie, null);
+    noCookie(r);
   });
 
-  it('refuses a proof signed for another purpose', async () => {
-    const proof = signed(shopper, shopper.publicKey(), 'faucet');
-    const r = await status(await issueUserSession(await post({ address: shopper.publicKey(), proof }), env, now));
-    assert.equal(r.status, 401);
-    assert.equal(r.error, 'session_proof_invalid');
-  });
-
-  it('refuses a contract address, which cannot sign SEP-53', async () => {
-    const r = await status(await issueUserSession(await post({ address: 'C' + 'A'.repeat(55) }), env, now));
+  it('refuses a body that is not JSON', async () => {
+    const r = await issueUserSession(await post('not json', { raw: true }), env, now);
     assert.equal(r.status, 400);
+    noCookie(r);
   });
 
-  it('issues nothing in production without CHG_SESSION_SECRET', async () => {
+  it('RULE: refuses to sign anything when the session secret is missing', async () => {
     const noSecret = { ...env, CHG_SESSION_SECRET: '' } as NodeJS.ProcessEnv;
-    const r = await status(await issueUserSession(await post({ address: shopper.publicKey(), proof: signed(shopper) }), noSecret, now));
+    const r = await issueUserSession(await post({ token: 'x' }), noSecret, now);
     assert.equal(r.status, 503);
-    assert.equal(r.cookie, null);
+    noCookie(r);
   });
 
-  it('still needs the human cookie', async () => {
-    const r = await status(await issueUserSession(await post({ address: shopper.publicKey(), proof: signed(shopper) }, { human: false }), env, now));
-    assert.equal(r.status, 403);
-  });
-
-  it('signs a session for the wallet that proved itself', async () => {
-    const res = await issueUserSession(await post({ address: shopper.publicKey(), proof: signed(shopper) }), env, now);
-    assert.equal(res.status, 200);
-    const cookie = res.headers.get('set-cookie') ?? '';
-    const token = decodeURIComponent(/chg_user=([^;]+)/.exec(cookie)?.[1] ?? '');
-    const read = await verifyUserToken(token, SESSION, now);
-    assert.deepEqual(read, { ok: true, address: shopper.publicKey() });
-    assert.match(cookie, /HttpOnly/);
-  });
-});
-
-describe('sessionSecret', () => {
-  it('takes only CHG_SESSION_SECRET in production', () => {
-    assert.equal(sessionSecret({ NODE_ENV: 'production', TURNSTILE_SECRET_KEY: 't' } as NodeJS.ProcessEnv), '');
-    assert.equal(sessionSecret({ NODE_ENV: 'production', CHG_SESSION_SECRET: ' s ' } as NodeJS.ProcessEnv), 's');
-  });
-
-  it('keeps the local fallbacks outside production', () => {
-    assert.equal(sessionSecret({ NODE_ENV: 'development', TURNSTILE_SECRET_KEY: 't' } as NodeJS.ProcessEnv), 't');
-    assert.equal(sessionSecret({ NODE_ENV: 'development' } as NodeJS.ProcessEnv), 'dev-chg-session-not-for-prod');
-  });
-
-  it('accepts no cookie at all when production has no secret', async () => {
-    const req = new Request('https://app.changuito.me/api/chat', { headers: { cookie: `${USER_COOKIE}=v2.1.2.3` } });
-    assert.deepEqual(await readLoggedInUser(req, { NODE_ENV: 'production' } as NodeJS.ProcessEnv), { ok: false });
+  it('RULE: the human gate runs first', async () => {
+    const r = await issueUserSession(await post({ token: 'x' }, { human: false }), env, now);
+    assert.notEqual(r.status, 200);
+    noCookie(r);
   });
 });

@@ -34,3 +34,8 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+      # After the tests: they build packages/mcp (its pretest), which the web
+      # app's types import. Test files are typechecked too.
+      - name: Typecheck (web)
+        run: npm run typecheck -w @changuito/web

@@ -12,7 +12,7 @@ import { before, describe, it } from 'node:test';
  */
 
 delete process.env.DATABASE_URL;
-process.env.NODE_ENV = 'production';
+(process.env as Record<string, string | undefined>).NODE_ENV = 'production';
 process.env.TURNSTILE_SECRET_KEY = 'turnstile-test-secret';
 process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = 'site-test';
 process.env.CHG_SESSION_SECRET = 'session-test-secret';

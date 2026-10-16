@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request): Promise<Response> {
   const user = await readSessionUser(req);
-  if (!user.ok && user.mismatch) return sessionMismatchResponse();
+  if (!user.ok && user.mismatch) return sessionMismatchResponse(req);
   if (!user.ok) return Response.json({ error: 'Iniciá sesión.' }, { status: 401 });
   try {
     const program = address(DEPLOYMENTS.devnet.programId);

@@ -5,9 +5,11 @@ import { describe, it } from 'node:test';
 import { aadFor, decryptProfile, encryptProfile, keyring, ProfileKeyError } from '../profile-crypto.ts';
 
 type Env = Parameters<typeof keyring>[0];
+/** A partial env, as keyring reads it. ProcessEnv also wants NODE_ENV, which keyring never looks at. */
+const env = (e: Record<string, string>) => e as unknown as Env;
 const KEY = randomBytes(32).toString('base64');
 const OTHER = randomBytes(32).toString('base64');
-const ring = keyring({ PROFILE_ENC_KEY: KEY } as Env);
+const ring = keyring(env({ PROFILE_ENC_KEY: KEY }));
 const AAD = aadFor('devnet', 'BuyerAddress1111111111111111111111111111111');
 const DATA = { email: 'a@b.com', password: 'hunter2', dni: '30123456', postcode: '1425' };
 
@@ -40,13 +42,13 @@ describe('profile encryption', () => {
   });
 
   it('has no fallback key', () => {
-    assert.throws(() => keyring({} as Env), ProfileKeyError);
-    assert.throws(() => keyring({ PROFILE_ENC_KEY: 'c2hvcnQ=' } as Env), ProfileKeyError);
+    assert.throws(() => keyring(env({})), ProfileKeyError);
+    assert.throws(() => keyring(env({ PROFILE_ENC_KEY: 'c2hvcnQ=' })), ProfileKeyError);
   });
 
   it('reads with the old key after a rotation, and writes with the new one', () => {
-    const before = encryptProfile(DATA, AAD, keyring({ PROFILE_ENC_KEY: OTHER } as Env));
-    const rotated = keyring({ PROFILE_ENC_KEY: KEY, PROFILE_ENC_KEY_OLD: OTHER } as Env);
+    const before = encryptProfile(DATA, AAD, keyring(env({ PROFILE_ENC_KEY: OTHER })));
+    const rotated = keyring(env({ PROFILE_ENC_KEY: KEY, PROFILE_ENC_KEY_OLD: OTHER }));
     assert.deepEqual(decryptProfile(before, AAD, rotated), DATA);
     assert.equal(encryptProfile(DATA, AAD, rotated).kid, ring.current.kid);
     assert.throws(() => decryptProfile(before, AAD, ring), ProfileKeyError);

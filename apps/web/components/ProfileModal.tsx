@@ -6,13 +6,11 @@ import { initials, profileCopy, type ProfileCopy } from '../lib/profile-copy.ts'
 import { fetchAs, type Who } from '../lib/fetch-as.ts';
 import type { PublicProfile } from '../lib/profile.ts';
 import { useWallet } from '../lib/use-wallet.ts';
-import { shortAddress } from '../lib/use-wallet.ts';
 import { uiCopy } from '../lib/ui-copy.ts';
 import { useLang } from './LangProvider';
 import { Modal } from './Modal';
 import { PasswordInput } from './PasswordInput';
 import { Toast } from './Toast';
-import { ModeBadge } from './ModeBadge';
 import { Purchases } from './Purchases';
 
 /**
@@ -174,10 +172,9 @@ export function ProfileGeneral({
               onClick={onReceive}
               title={wallet.addressTitle(address)}
             >
-              {shortAddress(address)}
+              {address}
             </button>
           </span>
-          <ModeBadge network="devnet" />
         </div>
       </div>
 

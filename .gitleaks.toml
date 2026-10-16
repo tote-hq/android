@@ -1,0 +1,18 @@
+# gitleaks config: the default rules plus an allowlist for known fake fixtures.
+# Never allowlist a real value. Prefer fixing the file to adding a path here.
+title = "changuito gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake test fixtures and public on-chain addresses"
+paths = [
+  # Unit-test fixtures: sk_test_/sk_live_ placeholders and Hardhat's public test key.
+  '''^packages/mcp/src/test/''',
+  # Public Solana devnet addresses (program, mint, treasury), not keys.
+  '''^deployments\.json$''',
+  '''^apps/web/lib/deployments\.ts$''',
+  # Template with empty values.
+  '''(^|/)\.env\.example$''',
+]

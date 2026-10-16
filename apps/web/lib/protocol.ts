@@ -88,7 +88,7 @@ export interface ChatRequest {
 
 export const SSE_HEADERS: Record<string, string> = {
   'Content-Type': 'text/event-stream; charset=utf-8',
-  'Cache-Control': 'no-cache, no-transform',
+  'Cache-Control': 'private, no-store, no-transform',
   Connection: 'keep-alive',
   // Without this a proxy buffers the whole stream and "streaming" becomes a
   // single delivery at the end.

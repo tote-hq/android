@@ -10,12 +10,19 @@ import {
   verifyHumanToken,
 } from './lib/human-gate';
 
+/** APIs carry a session, a balance or a payment. Nothing here is reusable. */
+const PRIVATE_NO_STORE = { 'cache-control': 'private, no-store' };
+
+function humansOnly(message: string) {
+  return NextResponse.json({ error: 'solo_humanos', message }, { status: 403, headers: PRIVATE_NO_STORE });
+}
+
 export async function middleware(req: NextRequest) {
   const ua = req.headers.get('user-agent') ?? '';
   if (AI_BOT_UA.test(ua)) {
     return new NextResponse('Solo humanos.', {
       status: 403,
-      headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+      headers: { 'content-type': 'text/plain; charset=utf-8', ...PRIVATE_NO_STORE },
     });
   }
 
@@ -24,19 +31,13 @@ export async function middleware(req: NextRequest) {
   // Conservative non-browser reject on APIs (keep UI fetch working).
   if (path.startsWith('/api/') && path !== '/api/human') {
     if (!hasBrowserFetchHints(req)) {
-      return NextResponse.json(
-        { error: 'solo_humanos', message: 'Changuito es solo para personas.' },
-        { status: 403 },
-      );
+      return humansOnly('Changuito es solo para personas.');
     }
 
     // Early cookie check when enforcing (route handlers re-check).
     const mode = humanGateMode(process.env);
     if (mode === 'closed') {
-      return NextResponse.json(
-        { error: 'solo_humanos', message: 'Changuito es solo para personas. Completá la verificación.' },
-        { status: 403 },
-      );
+      return humansOnly('Changuito es solo para personas. Completá la verificación.');
     }
     if (mode === 'enforce') {
       const secret = turnstileSecret();
@@ -47,15 +48,14 @@ export async function middleware(req: NextRequest) {
         readCookie(req.headers.get('cookie'), HUMAN_COOKIE);
       const ok = await verifyHumanToken(token, secret);
       if (!ok) {
-        return NextResponse.json(
-          { error: 'solo_humanos', message: 'Changuito es solo para personas. Completá la verificación.' },
-          { status: 403 },
-        );
+        return humansOnly('Changuito es solo para personas. Completá la verificación.');
       }
     }
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+  if (path.startsWith('/api/')) res.headers.set('Cache-Control', 'private, no-store');
+  return res;
 }
 
 export const config = {

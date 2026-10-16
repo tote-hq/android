@@ -21,13 +21,15 @@ export interface BalanceResponse {
   network: 'devnet';
 }
 
+const NO_STORE = { 'cache-control': 'private, no-store' };
+
 export async function GET(req: Request): Promise<Response> {
   const gated = await requireHuman(req);
   if (gated) return gated;
 
   const address = new URL(req.url).searchParams.get('address') ?? '';
   if (!isSolanaAddress(address)) {
-    return Response.json({ error: 'not a Solana address' }, { status: 400 });
+    return Response.json({ error: 'not a Solana address' }, { status: 400, headers: NO_STORE });
   }
   try {
     const b = await readBalances(address);
@@ -38,9 +40,9 @@ export async function GET(req: Request): Promise<Response> {
       usdcDisplay: formatUsdc(b.usdc),
       network: 'devnet',
     };
-    return Response.json(body);
+    return Response.json(body, { headers: NO_STORE });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return Response.json({ error: `could not read balances: ${message}` }, { status: 502 });
+    console.error('[balance]', err instanceof Error ? err.message : String(err));
+    return Response.json({ error: 'No pudimos leer tu saldo ahora.' }, { status: 502, headers: NO_STORE });
   }
 }

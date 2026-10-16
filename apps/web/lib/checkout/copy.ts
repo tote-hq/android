@@ -65,6 +65,19 @@ export interface EscrowCopy {
   close: string;
   finish: string;
   failed: string;
+  /** While the order is still open and something is off (lib/checkout/resolver-alert.ts). */
+  alertTitle: Record<'resolver_failed' | 'stuck', string>;
+  alertBody: Record<'resolver_failed' | 'stuck', string>;
+  /** The hand-off to Día: the shopper finishes the purchase themselves. */
+  handoffTitle: string;
+  handoffSteps: [string, string, string];
+  handoffWhy: string;
+  handoffListLabel: string;
+  handoffCopy: string;
+  handoffCopied: string;
+  handoffNoLink: string;
+  /** The cart as plain text for the clipboard: one line per product, then the total. */
+  handoffText: (lines: { name: string; quantity: number }[], total: string) => string;
 }
 
 const ES: EscrowCopy = {
@@ -137,6 +150,28 @@ const ES: EscrowCopy = {
   close: 'Cerrar',
   finish: 'Listo',
   failed: 'Algo falló. Probá de nuevo.',
+  alertTitle: {
+    resolver_failed: 'Estamos trabados cerrando tu pedido',
+    stuck: 'Esto está tardando más de la cuenta',
+  },
+  alertBody: {
+    resolver_failed:
+      'La compra terminó, pero no pudimos liberar o devolver el escrow. Lo seguimos intentando solo y ya nos llegó el aviso. Tus USDC siguen bloqueados en Solana, no se pierden: si no se resuelve, vuelven a tu billetera cuando vence el pedido (1 hora).',
+    stuck:
+      'La compra lleva más de 15 minutos sin terminar. Tus USDC siguen seguros en el escrow y nos llegó el aviso. Podés cerrar esta ventana: si no se resuelve, vuelven a tu billetera cuando vence el pedido (1 hora).',
+  },
+  handoffTitle: 'El último paso lo hacés vos en Día',
+  handoffSteps: [
+    'Abrí tu changuito en Día (o copiá la lista).',
+    'Revisá los productos y elegí cómo te llega.',
+    'Pagá en Día. Si te aparece el "No soy un robot", marcalo vos.',
+  ],
+  handoffWhy: 'Día pide una verificación que solo puede pasar una persona, así que la compra la confirmás vos.',
+  handoffListLabel: 'Tu changuito',
+  handoffCopy: 'Copiar lista',
+  handoffCopied: '¡Copiada!',
+  handoffNoLink: 'No tenemos el link a tu carrito de Día. Copiá la lista y cargala en dia.com.ar.',
+  handoffText: (lines, total) => [...lines.map((l) => `${l.quantity} x ${l.name}`), `Total: ${total}`].join('\n'),
 };
 
 const EN: EscrowCopy = {
@@ -208,6 +243,28 @@ const EN: EscrowCopy = {
   close: 'Close',
   finish: 'Done',
   failed: 'Something failed. Try again.',
+  alertTitle: {
+    resolver_failed: "We're stuck closing your order",
+    stuck: 'This is taking longer than it should',
+  },
+  alertBody: {
+    resolver_failed:
+      "The purchase finished, but we couldn't release or refund the escrow. We keep retrying on our own and we've been alerted. Your USDC is still locked on Solana, not lost: if this doesn't clear, it goes back to your wallet when the order expires (1 hour).",
+    stuck:
+      "The purchase has been running for over 15 minutes. Your USDC is safe in the escrow and we've been alerted. You can close this window: if it doesn't clear, it goes back to your wallet when the order expires (1 hour).",
+  },
+  handoffTitle: 'You take the last step at Día',
+  handoffSteps: [
+    'Open your basket at Día (or copy the list).',
+    'Check the products and pick delivery.',
+    'Pay at Día. If an "I\'m not a robot" box shows up, tick it yourself.',
+  ],
+  handoffWhy: 'Día asks for a check only a person can pass, so you confirm the purchase yourself.',
+  handoffListLabel: 'Your basket',
+  handoffCopy: 'Copy list',
+  handoffCopied: 'Copied!',
+  handoffNoLink: "We don't have the link to your Día cart. Copy the list and add it at dia.com.ar.",
+  handoffText: (lines, total) => [...lines.map((l) => `${l.quantity} x ${l.name}`), `Total: ${total}`].join('\n'),
 };
 
 export function escrowCopy(lang: Lang): EscrowCopy {

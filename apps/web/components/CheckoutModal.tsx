@@ -16,6 +16,7 @@ import { explorerTx } from '../lib/solana.ts';
 import { useBalances } from '../lib/use-balances.ts';
 import { useWallet } from '../lib/use-wallet.ts';
 import { useLang } from './LangProvider';
+import { DiaHandoff } from './DiaHandoff';
 import { PasswordInput } from './PasswordInput';
 
 /**
@@ -101,6 +102,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
   const [editing, setEditing] = useState(false);
   const [savingDia, setSavingDia] = useState(false);
   const quoting = useRef(false);
+  const alerted = useRef<string | null>(null);
   const field = (k: keyof DiaLogin) => (e: ChangeEvent<HTMLInputElement>) => setDia((d) => ({ ...d, [k]: e.target.value }));
 
   // Signed in -> mint the session cookie -> quote. Once.
@@ -248,6 +250,10 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
         const body = (await res.json().catch(() => null)) as StatusResponse | null;
         if (stopped || !res.ok || !body) return;
         setStatus(body);
+        if (body.alert && alerted.current !== body.alert) {
+          alerted.current = body.alert;
+          track('failure', { code: body.alert });
+        }
         if (body.stage === 'done' || body.stage === 'refunded') {
           setStep(body.stage);
           track(body.stage === 'done' ? 'escrow_settled' : 'escrow_refunded', {});
@@ -296,6 +302,17 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
   const railAt = step === 'login' ? 0 : step === 'review' || step === 'locking' ? 1 : 2;
   const closeSig = status?.closeSig ?? null;
   const lockSig = status?.openSig ?? openSig;
+  // The hand-off block (components/DiaHandoff.tsx): on a finished demo and on
+  // any refund, so the shopper can finish the purchase at Día themselves.
+  const handoff = (
+    <DiaHandoff
+      copy={copy}
+      url={status?.handoffUrl ?? null}
+      lines={cart.lines.filter((l) => l.available).map((l) => ({ name: l.name, quantity: l.quantity }))}
+      total={cart.total.display}
+      onOpen={(via) => track('dia_handoff', { stage: step, via })}
+    />
+  );
 
   return (
     <div className="modal-backdrop" onClick={close}>
@@ -476,6 +493,12 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
                   : (copy.phases[status?.phase ?? 'queued'] ?? copy.phases.queued)}
               </p>
               <p className="ck-note">{demo ? copy.demoShoppingNote : copy.shoppingNote}</p>
+              {status?.alert ? (
+                <div className="ck-alert" role="alert" data-testid="checkout-alert" data-alert={status.alert}>
+                  <p className="ck-alert-title">{copy.alertTitle[status.alert]}</p>
+                  <p className="ck-note">{copy.alertBody[status.alert]}</p>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -484,12 +507,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
               <h3 className="ck-ok">{demo ? copy.demoDoneTitle : copy.doneTitle}</h3>
               <p className="ck-lead">{demo ? copy.demoDoneLead : copy.doneLead(status?.storeOrderId ?? null)}</p>
               {demo ? (
-                status?.handoffUrl ? (
-                  <a className="btn" href={status.handoffUrl} target="_blank" rel="noopener noreferrer" data-testid="checkout-handoff"
-                  onClick={() => track('dia_handoff', { stage: step })}>
-                    {copy.handoffCta} ↗
-                  </a>
-                ) : null
+                handoff
               ) : (
                 <p className="ck-note">{copy.doneNote}</p>
               )}
@@ -511,18 +529,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
               ) : null}
               {/* The cart the shopper built in the chat, at the store: the way
                   to finish when we could not, and the whole point of a demo. */}
-              {status?.handoffUrl ? (
-                <a
-                  className="btn"
-                  href={status.handoffUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="checkout-handoff"
-                  onClick={() => track('dia_handoff', { stage: step })}
-                >
-                  {copy.handoffCta} ↗
-                </a>
-              ) : null}
+              {handoff}
             </div>
           ) : null}
 

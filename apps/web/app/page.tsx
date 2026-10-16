@@ -1,3 +1,4 @@
+import { BetaOnboarding } from '../components/BetaOnboarding';
 import { Chat } from '../components/Chat';
 import { Deck } from '../components/Deck';
 import { FooterSocial } from '../components/FooterSocial';
@@ -51,6 +52,7 @@ export default async function Home() {
                     })}
                   </p>
                 </header>
+                <BetaOnboarding />
                 <HumanGate siteKey={siteKey}>
                   <Chat />
                 </HumanGate>

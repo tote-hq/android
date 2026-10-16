@@ -56,7 +56,10 @@ export function WalletWidget() {
 
   const wasAuthed = useRef(wallet.authenticated);
   useEffect(() => {
-    if (!wasAuthed.current && wallet.authenticated) track('login_success');
+    if (!wasAuthed.current && wallet.authenticated) {
+      track('login_success');
+      track('login');
+    }
     wasAuthed.current = wallet.authenticated;
   }, [wallet.authenticated]);
 
@@ -102,10 +105,12 @@ export function WalletWidget() {
       // 429 carries a real answer ("you already have enough"), not a failure.
       if (!res.ok && res.status !== 429) throw new Error(json.message ?? json.error ?? `faucet failed (${res.status})`);
       track('payment_success', { flow: 'faucet', code: res.status === 429 ? 'enough' : 'ok' });
+      track('faucet', { code: res.status === 429 ? 'enough' : 'ok' });
       setNote(json.note ?? copy.fundedAmount(usdcAmount(GRANT_UNITS, lang)));
       refresh();
     } catch (err) {
       track('payment_fail', { flow: 'faucet', code: 'error' });
+      track('failure', { code: 'faucet' });
       setNote(err instanceof Error ? err.message : String(err));
     } finally {
       setFunding(false);

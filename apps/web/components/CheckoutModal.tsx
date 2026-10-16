@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 
 import type { Cart, LocationContext } from '@changuito/mcp/types';
 
+import { lockFailureCode, refundFailureCode } from '../lib/funnel';
 import { track } from '../lib/analytics';
 import type { Receipt } from '../lib/chat-store.ts';
 import { escrowCopy } from '../lib/checkout/copy.ts';
@@ -175,6 +176,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
       if (!res.ok && res.status !== 429) throw new Error(body?.error ?? copy.failed);
       if (res.status === 429 && body?.note) setError(body.note);
       track('faucet_grant', {});
+      track('faucet', { code: res.status === 429 ? 'enough' : 'ok' });
       refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : copy.failed);
@@ -211,7 +213,8 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
       if (!sent.ok) throw new Error(opened?.error ?? copy.failed);
       const sig = opened.openSig as string;
       setOpenSig(sig);
-      track('escrow_open', { amount: quote.amountDisplay });
+      track('escrow_open');
+      track('pay_open');
       const res = await fetch('/api/checkout/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -229,6 +232,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
       setStep('shopping');
     } catch (e) {
       console.warn('[checkout] lock failed', e);
+      track('failure', { code: lockFailureCode(e instanceof Error ? e.message : '') });
       setError(e instanceof Error && e.message ? e.message : copy.failed);
       setStep('review');
     }
@@ -247,6 +251,12 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
         if (body.stage === 'done' || body.stage === 'refunded') {
           setStep(body.stage);
           track(body.stage === 'done' ? 'escrow_settled' : 'escrow_refunded', {});
+          if (body.stage === 'done') track('settle');
+          else {
+            const code = refundFailureCode(body);
+            track('refund', { code });
+            track('failure', { code });
+          }
           refresh();
         }
       } catch {
@@ -475,7 +485,8 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
               <p className="ck-lead">{demo ? copy.demoDoneLead : copy.doneLead(status?.storeOrderId ?? null)}</p>
               {demo ? (
                 status?.handoffUrl ? (
-                  <a className="btn" href={status.handoffUrl} target="_blank" rel="noopener noreferrer" data-testid="checkout-handoff">
+                  <a className="btn" href={status.handoffUrl} target="_blank" rel="noopener noreferrer" data-testid="checkout-handoff"
+                  onClick={() => track('dia_handoff', { stage: step })}>
                     {copy.handoffCta} ↗
                   </a>
                 ) : null
@@ -507,6 +518,7 @@ export function CheckoutModal({ cart, location, handoffUrl, onClose, onPaid }: P
                   target="_blank"
                   rel="noopener noreferrer"
                   data-testid="checkout-handoff"
+                  onClick={() => track('dia_handoff', { stage: step })}
                 >
                   {copy.handoffCta} ↗
                 </a>

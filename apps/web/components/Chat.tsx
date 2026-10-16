@@ -383,6 +383,22 @@ function ChatCore({
     sawGate.current = gated;
   }, [gated]);
 
+  // cart_built: once per cart block that arrives in this tab. Carts already
+  // on screen at first render (a restored chat) are not new.
+  const seenCarts = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const ids = state.blocks.filter((b) => b.kind === 'cart').map((b) => b.id);
+    if (!seenCarts.current) {
+      seenCarts.current = new Set(ids);
+      return;
+    }
+    for (const id of ids) {
+      if (seenCarts.current.has(id)) continue;
+      seenCarts.current.add(id);
+      track('cart_built');
+    }
+  }, [state.blocks]);
+
   const seenError = useRef<string | null>(null);
   useEffect(() => {
     const lastError = [...state.blocks].reverse().find((b) => b.kind === 'error');

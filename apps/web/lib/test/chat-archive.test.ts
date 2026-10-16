@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
 import { archiveChat, chatTitle, type ArchiveDeps } from '../chat-archive.ts';
 
 import type { Turn } from '../agent/loop.ts';
 
-const WALLET = `G${'A'.repeat(55)}`;
+const WALLET = 'BuyerWallet11111111111111111111111111111111';
 
 /**
  * A turn built by hand rather than with `newTurnState()`: importing loop.ts
@@ -56,45 +57,41 @@ describe('archiving a conversation', () => {
   it('RULE: a guest is never written down', async () => {
     const deps = spy();
     const outcome = await archiveChat(
-      { id: 'c1', network: 'testnet', address: null, turn: turnWith('hola'), title: 'hola' },
+      { id: 'c1', network: 'devnet', address: null, turn: turnWith('hola'), title: 'hola' },
       deps,
     );
     assert.equal(outcome, 'guest');
     assert.deepEqual(deps.calls, [], 'a guest transcript reached the database');
   });
 
-  it('RULE: preview is never written down either, address or no address', { skip: 'Stellar-era rule (pre-Solana port a842ca7); Solana has no separate preview network (only devnet); whether signed-in devnet chats are archived needs owner confirmation' }, async () => {
-    // The allowlist can put a proven wallet on testnet, so "no session" does
-    // not cover this on its own. `modeKeepsRecords` is asked out loud, and
-    // this is the case that would otherwise hold only by coincidence.
+  it('RULE: a guest is never written down, even with a database', async () => {
+    // Decision (Oct 2026): only signed-in shoppers are archived. The address
+    // comes from the verified session cookie (api/chat/route.ts), never the body.
     const deps = spy();
-    const outcome = await archiveChat(
-      { id: 'c1', network: 'testnet', address: WALLET, turn: turnWith('hola'), title: 'hola' },
-      deps,
-    );
-    assert.equal(outcome, 'preview');
-    assert.deepEqual(deps.calls, [], 'a preview transcript reached the database');
+    for (const address of [null, '']) {
+      const outcome = await archiveChat(
+        { id: 'c1', network: 'devnet', address: address as never, turn: turnWith('hola'), title: 'hola' },
+        deps,
+      );
+      assert.equal(outcome, 'guest');
+    }
+    assert.deepEqual(deps.calls, [], 'a guest transcript reached the database');
   });
 
-  it('RULE: the mode is checked before the database, so preview never dials one', { skip: 'Stellar-era rule (pre-Solana port a842ca7); Solana has no separate preview network (only devnet); whether signed-in devnet chats are archived needs owner confirmation' }, async () => {
-    // Ordering, not pedantry: a deployment always has DATABASE_URL set, so
-    // asking `hasDatabase` first would answer 'no-database' for nobody and
-    // hide the reason preview writes nothing.
-    const deps = { ...spy(), hasDatabase: () => false };
-    assert.equal(
-      await archiveChat(
-        { id: 'c1', network: 'testnet', address: WALLET, turn: turnWith('hola'), title: 'hola' },
-        deps,
-      ),
-      'preview',
-    );
+  it('RULE: a chat is private to its owner: reads filter by address, and an upsert never changes hands', () => {
+    // No database in unit tests, so this pins the SQL itself (same precedent
+    // as brand-lockup.test.ts): a chat id is a UUID, not a capability.
+    const db = readFileSync(new URL('../db.ts', import.meta.url), 'utf8');
+    assert.match(db, /from chat where id = \$\{id\} and address = \$\{address\}/);
+    assert.match(db, /where network = \$\{net\} and address = \$\{address\}/);
+    assert.match(db, /on conflict \(id\) do update[\s\S]*?where chat\.address = excluded\.address/);
   });
 
   it('writes nothing with no database configured', async () => {
     const deps = { ...spy(), hasDatabase: () => false };
     assert.equal(
       await archiveChat(
-        { id: 'c1', network: 'mainnet', address: WALLET, turn: turnWith('hola'), title: 'hola' },
+        { id: 'c1', network: 'devnet', address: WALLET, turn: turnWith('hola'), title: 'hola' },
         deps,
       ),
       'no-database',
@@ -105,14 +102,14 @@ describe('archiving a conversation', () => {
     const deps = spy();
     assert.equal(
       await archiveChat(
-        { id: 'c1', network: 'mainnet', address: WALLET, turn: turnWith('hola'), title: 'hola' },
+        { id: 'c1', network: 'devnet', address: WALLET, turn: turnWith('hola'), title: 'hola' },
         deps,
       ),
       'saved',
     );
     const saved = deps.calls[0] as { id: string; network: string; address: string; title: string | null };
     assert.equal(saved.id, 'c1');
-    assert.equal(saved.network, 'mainnet');
+    assert.equal(saved.network, 'devnet');
     assert.equal(saved.address, WALLET);
     assert.equal(saved.title, 'hola');
   });
@@ -120,7 +117,7 @@ describe('archiving a conversation', () => {
   it('RULE: the render cache survives the trip, because a Map does not stringify', async () => {
     const deps = spy();
     await archiveChat(
-      { id: 'c1', network: 'mainnet', address: WALLET, turn: turnWith('hola'), title: null },
+      { id: 'c1', network: 'devnet', address: WALLET, turn: turnWith('hola'), title: null },
       deps,
     );
     const saved = deps.calls[0] as { transcript: { v: number; products: [string, unknown][] } };
@@ -143,7 +140,7 @@ describe('archiving a conversation', () => {
     };
     assert.equal(
       await archiveChat(
-        { id: 'c1', network: 'mainnet', address: WALLET, turn: turnWith('hola'), title: null },
+        { id: 'c1', network: 'devnet', address: WALLET, turn: turnWith('hola'), title: null },
         deps,
       ),
       'failed',

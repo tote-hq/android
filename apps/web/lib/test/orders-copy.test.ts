@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { PREVIEW_MASTHEAD } from '../mode-copy.ts';
+
 import {
   dollars,
   KEPT_CARD,
@@ -34,9 +36,9 @@ describe('the purchases page copy', () => {
     assert.match(PURCHASES.guestBody, /no guardamos nada/i);
   });
 
-  it('RULE: the way into the real mode says the same words as the masthead', { skip: 'Privy port: guest action is now "Iniciar sesión"; copy rule pending a product decision' }, () => {
+  it('RULE: the way in says the same words as the masthead', () => {
     // Two different sentences for one crossing would read as two crossings.
-    assert.equal(PURCHASES.guestAction, 'Cambiar a modo real');
+    assert.equal(PURCHASES.guestAction, PREVIEW_MASTHEAD.action);
   });
 
   it('RULE: warns about the signature before asking for it', () => {

@@ -589,7 +589,7 @@ const EN: UiCopy = {
       },
       {
         long: 'Tell me the recipe and how many you cook for. I take care of the store.',
-        short: 'Tell me what you are cooking, and for how many.',
+        short: 'What are you cooking, and for how many?',
       },
       {
         long: 'A work week or a get-together? Say how many and what they eat, and we fill the trolley.',

@@ -54,7 +54,7 @@ describe('beta onboarding', () => {
 
   it('is the short copy, in both languages', () => {
     assert.deepEqual(
-      { ...onboardingCopy('es'), steps: onboardingCopy('es').steps.map(stepText) },
+      { title: onboardingCopy('es').title, steps: onboardingCopy('es').steps.map(stepText), note: onboardingCopy('es').note, dismiss: onboardingCopy('es').dismiss },
       {
         title: 'Así funciona la beta',
         steps: [
@@ -69,7 +69,7 @@ describe('beta onboarding', () => {
       },
     );
     assert.deepEqual(
-      { ...onboardingCopy('en'), steps: onboardingCopy('en').steps.map(stepText) },
+      { title: onboardingCopy('en').title, steps: onboardingCopy('en').steps.map(stepText), note: onboardingCopy('en').note, dismiss: onboardingCopy('en').dismiss },
       {
         title: 'How the beta works',
         steps: [
@@ -83,6 +83,36 @@ describe('beta onboarding', () => {
         dismiss: "OK, let's go",
       },
     );
+  });
+
+  it('has a one-paragraph phone version with the same faucet link and a one-word button', () => {
+    const es = onboardingCopy('es');
+    const en = onboardingCopy('en');
+    assert.equal(stepText(es.compact), 'Beta en devnet: iniciá sesión, cargá USDC gratis en el faucet y pedile lo que necesitás.');
+    assert.equal(stepText(en.compact), 'Devnet beta: sign in, get free USDC from the faucet and ask Changuito for what you need.');
+    assert.equal(es.dismissShort, 'Dale');
+    assert.equal(en.dismissShort, 'OK');
+    for (const c of [es, en]) {
+      assert.equal(c.compact.link, 'faucet');
+      // ~2 lines beside the button at 390px wide (measured: 2 lines, card 53px tall).
+      assert.ok(stepText(c.compact).length <= 90, stepText(c.compact));
+    }
+  });
+
+  it('shows the phone version only under 560px, and only one of the two at a time', () => {
+    const css = read('../../app/globals.css');
+    assert.match(css, /\.onb-short, \.onb-label-short \{ display: none; \}/);
+    const phone = css.slice(css.indexOf('@media (max-width: 560px) {\n  .onb {'));
+    const block = phone.slice(0, phone.indexOf('\n}\n'));
+    assert.match(block, /\.onb-body, \.onb-label-full \{ display: none; \}/);
+    assert.match(block, /\.onb-short \{ display: block;/);
+    assert.match(block, /\.onb-label-short \{ display: inline; \}/);
+    assert.match(block, /\.onb \{ flex-direction: row;/, 'the button sits beside the paragraph');
+    const comp = read('../../components/BetaOnboarding.tsx');
+    // Still one dismiss button, with both labels; the compact text uses the same link component.
+    assert.equal(comp.match(/data-testid="beta-onboarding-dismiss"/g)?.length, 1);
+    assert.match(comp, /<FaucetText step=\{copy\.compact\} linked=\{linked\} \/>/);
+    assert.match(comp, /className="onb-label-short">\{copy\.dismissShort\}/);
   });
 
   it('keeps every line short enough for a phone', () => {

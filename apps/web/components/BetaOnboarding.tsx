@@ -28,13 +28,19 @@ export function BetaOnboarding() {
   if (!show) return null;
   return (
     <section className="onb" aria-label={copy.title} data-testid="beta-onboarding">
-      <h2 className="onb-title">{copy.title}</h2>
-      <ol className="onb-steps">
-        {copy.steps.map((s) => (
-          <li key={stepText(s)}>{typeof s === 'string' ? s : <FaucetText step={s} linked={linked} />}</li>
-        ))}
-      </ol>
-      <p className="onb-note">{copy.note}</p>
+      {/* Desktop: the full card. Phones get .onb-short instead (globals.css). */}
+      <div className="onb-body">
+        <h2 className="onb-title">{copy.title}</h2>
+        <ol className="onb-steps">
+          {copy.steps.map((s) => (
+            <li key={stepText(s)}>{typeof s === 'string' ? s : <FaucetText step={s} linked={linked} />}</li>
+          ))}
+        </ol>
+        <p className="onb-note">{copy.note}</p>
+      </div>
+      <p className="onb-short" data-testid="beta-onboarding-compact">
+        <FaucetText step={copy.compact} linked={linked} />
+      </p>
       <div className="onb-actions">
         <button
           type="button"
@@ -45,7 +51,8 @@ export function BetaOnboarding() {
             setShow(false);
           }}
         >
-          {copy.dismiss}
+          <span className="onb-label-full">{copy.dismiss}</span>
+          <span className="onb-label-short">{copy.dismissShort}</span>
         </button>
       </div>
     </section>

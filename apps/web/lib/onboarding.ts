@@ -25,6 +25,14 @@ export interface OnboardingCopy {
   steps: [string, FaucetStep, string, string, string];
   note: string;
   dismiss: string;
+  /**
+   * The phone version (<=560px): one short paragraph instead of the title,
+   * steps and note, with the same "faucet" link, and a one-word button.
+   * Both versions are in the DOM; CSS shows one (display:none also hides the
+   * other from screen readers), so there is no hydration flash.
+   */
+  compact: FaucetStep;
+  dismissShort: string;
 }
 
 /** Plain text of a step, for labels, keys and tests. */
@@ -43,6 +51,8 @@ const ES: OnboardingCopy = {
   ],
   note: 'Si algo falla, tus USDC vuelven solos.',
   dismiss: 'Dale, empecemos',
+  compact: { before: 'Beta en devnet: iniciá sesión, cargá USDC gratis en el ', link: 'faucet', after: ' y pedile lo que necesitás.' },
+  dismissShort: 'Dale',
 };
 
 const EN: OnboardingCopy = {
@@ -56,6 +66,8 @@ const EN: OnboardingCopy = {
   ],
   note: 'If something fails, your USDC comes back on its own.',
   dismiss: "OK, let's go",
+  compact: { before: 'Devnet beta: sign in, get free USDC from the ', link: 'faucet', after: ' and ask Changuito for what you need.' },
+  dismissShort: 'OK',
 };
 
 export function onboardingCopy(lang: Lang): OnboardingCopy {

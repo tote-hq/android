@@ -6,6 +6,7 @@ import { track, trackLoginStart } from '../lib/analytics';
 import { GRANT_UNITS } from '../lib/faucet-policy.ts';
 import { usdcAmount } from '../lib/faucet-copy.ts';
 import { modeCopy, previewMasthead } from '../lib/mode-copy.ts';
+import { OPEN_FAUCET_EVENT } from '../lib/onboarding.ts';
 import { initials, profileCopy } from '../lib/profile-copy.ts';
 import { ensureUserCookie, forgetUserCookie } from '../lib/session-login.ts';
 import { fetchAs } from '../lib/fetch-as.ts';
@@ -53,6 +54,19 @@ export function WalletWidget() {
     const t = setTimeout(() => setNote(null), 6000);
     return () => clearTimeout(t);
   }, [note]);
+
+  // The onboarding card's "faucet" link (BetaOnboarding.tsx) opens the same
+  // confirm as the button below. It is only a link once signed in, and the
+  // listener only acts with a wallet, so a signed-out event does nothing.
+  useEffect(() => {
+    if (!address || funding) return;
+    const open = () => {
+      setNote(null);
+      setConfirming(true);
+    };
+    window.addEventListener(OPEN_FAUCET_EVENT, open);
+    return () => window.removeEventListener(OPEN_FAUCET_EVENT, open);
+  }, [address, funding]);
 
   const wasAuthed = useRef(wallet.authenticated);
   useEffect(() => {

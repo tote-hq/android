@@ -2,12 +2,22 @@
 
 import { useEffect, useState } from 'react';
 
-import { dismissOnboarding, onboardingCopy, shouldShowOnboarding } from '../lib/onboarding.ts';
+import {
+  dismissOnboarding,
+  faucetLinkEnabled,
+  onboardingCopy,
+  requestFaucet,
+  shouldShowOnboarding,
+  stepText,
+  type FaucetStep,
+} from '../lib/onboarding.ts';
+import { useWallet } from '../lib/use-wallet.ts';
 import { useLang } from './LangProvider';
 
 /** First-visit beta explainer. See lib/onboarding.ts for why it is inline. */
 export function BetaOnboarding() {
   const copy = onboardingCopy(useLang());
+  const linked = faucetLinkEnabled(useWallet());
   // Decided after mount: the server has no localStorage, and rendering it on
   // the server would flash it for returning testers.
   const [show, setShow] = useState(false);
@@ -21,7 +31,7 @@ export function BetaOnboarding() {
       <h2 className="onb-title">{copy.title}</h2>
       <ol className="onb-steps">
         {copy.steps.map((s) => (
-          <li key={s}>{s}</li>
+          <li key={stepText(s)}>{typeof s === 'string' ? s : <FaucetText step={s} linked={linked} />}</li>
         ))}
       </ol>
       <p className="onb-note">{copy.note}</p>
@@ -39,5 +49,31 @@ export function BetaOnboarding() {
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * Signed in, "faucet" opens the top bar's FaucetConfirm (the card stays up).
+ * Signed out it is plain text: the fund button does not exist yet either.
+ */
+function FaucetText({ step, linked }: { step: FaucetStep; linked: boolean }) {
+  return (
+    <>
+      {step.before}
+      {linked ? (
+        <button
+          type="button"
+          className="onb-link"
+          data-testid="beta-onboarding-faucet"
+          aria-haspopup="dialog"
+          onClick={() => requestFaucet(window)}
+        >
+          {step.link}
+        </button>
+      ) : (
+        step.link
+      )}
+      {step.after}
+    </>
   );
 }

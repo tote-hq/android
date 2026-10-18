@@ -383,15 +383,15 @@ const ES: UiCopy = {
     placeholders: [
       {
         long: '¿Qué necesitás del súper? Contanos para cuántos cocinás y te armamos la lista de lo que necesitás.',
-        short: '¿Qué necesitás del súper y para cuántos?',
+        short: '¿Qué necesitás del súper?',
       },
       {
         long: '¿Asado, milanesas o algo light? Decime para cuántos y Changuito arma la lista.',
-        short: '¿Asado, milanesas o algo light?',
+        short: '¿Asado o algo light?',
       },
       {
         long: 'Contame la receta y para cuántos cocinás. Yo me encargo del súper.',
-        short: 'Decime qué cocinás y para cuántos.',
+        short: '¿Qué cocinás y para cuántos?',
       },
       {
         long: '¿Semana laboral o juntada? Decime cuántos son y qué comen, y armamos el carrito.',
@@ -581,19 +581,19 @@ const EN: UiCopy = {
     placeholders: [
       {
         long: 'What do you need from the store? Tell us how many you cook for and we put the list together.',
-        short: 'What do you need, and for how many?',
+        short: 'What do you need today?',
       },
       {
         long: 'A roast, milanesas or something light? Say how many and Changuito makes the list.',
-        short: 'A roast, milanesas or something light?',
+        short: 'A roast or something light?',
       },
       {
         long: 'Tell me the recipe and how many you cook for. I take care of the store.',
-        short: 'What are you cooking, and for how many?',
+        short: 'Cooking what, for how many?',
       },
       {
         long: 'A work week or a get-together? Say how many and what they eat, and we fill the trolley.',
-        short: 'A work week or a get-together?',
+        short: 'Work week or get-together?',
       },
     ],
   },

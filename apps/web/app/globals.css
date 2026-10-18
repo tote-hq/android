@@ -780,6 +780,11 @@ a:hover { color: var(--chg-arcilla); }
   opacity: 1;
   white-space: pre-wrap;
 }
+/* Phones: the placeholder one step smaller so it fits one line; the typed
+   text stays 16px, which keeps iOS from zooming on focus. */
+@media (max-width: 560px) {
+  .composer-input::placeholder { font-size: 14px; }
+}
 
 @media (max-width: 560px) {
   .shell {
@@ -795,19 +800,15 @@ a:hover { color: var(--chg-arcilla); }
     padding-block: 12px;
     padding-inline-start: 0;
   }
-  /* A long placeholder must not inflate the bar once a conversation exists,
-     but the phone placeholders run two lines at 390px, and iOS Safari sizes
-     an empty field to one line (it ignores the placeholder and rows=2), so
-     the second line was cut in half. Two lines of text plus padding and
-     border, in em so larger text settings still fit. */
+  /* A long placeholder must not inflate the bar once a conversation exists.
+     The phone placeholders are one line at 360px (ui-copy.ts), so the field
+     stays one line tall: iOS Safari sizes an empty field to one line anyway. */
   .composer-input {
-    min-height: calc(2.7em + 26px);
-    max-height: 120px;
+    min-height: 48px;
+    max-height: 96px;
   }
-  /* Enviar sits mid-height beside the two-line field, not on its baseline. */
+  /* Enviar sits mid-height beside the field; the tools get an even gap. */
   .composer > .btn { align-self: center; }
-  /* 8px between rows clears the field's 5px focus ring above the tools. */
-  .composer { row-gap: 8px; }
   .composer-tools { gap: 8px; }
   /* Empty means there is nothing to scroll to. A placeholder that still
      overflows (large text settings) is clipped instead of wearing a bar. */
@@ -1611,13 +1612,11 @@ a:hover { color: var(--chg-arcilla); }
 
   .shell:has(.chat.is-empty) .composer {
     column-gap: 8px;
-    /* 8px between the field and the tools: the field's focus ring is 5px
-       (3px + 2px offset), so 4px drew it over the icons. */
-    row-gap: 8px;
-    /* Same ring gutter as .composer, with room under the separator and above
-       the footer so the bar does not look pressed between them. The
-       home-indicator inset stays on .app-footer. */
-    padding: 10px 8px 8px;
+    /* Same 16px of vertical space as before, split 5 / 6 / 5: 5px top and
+       bottom hold the field's and the tools' 5px focus ring inside the clip,
+       and 6px between the rows keeps the field's ring off the icons. */
+    row-gap: 6px;
+    padding: 5px 8px;
     margin: 0;
   }
 
@@ -1626,10 +1625,10 @@ a:hover { color: var(--chg-arcilla); }
        Enviar off the visual viewport. 16px avoids the iOS focus zoom. */
     field-sizing: content;
     height: auto;
-    /* Two lines (2 × 1.3em) + 16px padding + 2px border: the phone
-       placeholders wrap to two lines at 390px, and iOS Safari sizes an empty
-       field to one, which cut the second line in half. */
-    min-height: calc(2.6em + 18px);
+    /* One line: the phone placeholders fit one line at 360px (ui-copy.ts).
+       iOS Safari sizes an empty field to one line, ignoring the placeholder,
+       so a two-line placeholder was cut in half. */
+    min-height: 44px;
     max-height: 112px;
     padding: 8px 12px;
     font-size: 16px;

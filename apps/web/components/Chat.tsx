@@ -55,7 +55,8 @@ const VOICE_NOTE: Record<DictationError, 'voiceUnsupported' | 'voiceDenied' | 'v
  *
  * Each prompt has a short twin for phones. The long ones run four lines in a
  * 390px field, which is past the height cap, so an empty box showed a
- * scrollbar and a sentence cut in half. The short ones fit two lines at 360px.
+ * scrollbar and a sentence cut in half. The short ones fit one line at 360px
+ * (with the 14px phone placeholder, globals.css), so the field stays one line.
  * Both halves live in `ui-copy.ts`, in both languages.
  */
 function useComposerPlaceholder(lang: Lang): string {

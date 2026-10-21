@@ -1,5 +1,7 @@
 # changuito
 
+La app de Android para el dApp Store de Solana Mobile (Seeker) está en [`android/README.md`](android/README.md). Es una shell que abre https://sol.changuito.me. La guía para crear el keystore, firmar el APK y publicarlo está en español ahí. Los textos y las imágenes de la ficha están en [`store-listing/ficha.md`](store-listing/ficha.md).
+
 **An AI agent that does your Argentine supermarket shop, paid in USDC on Solana,
 with the money held in an on-chain escrow until the agent proves it could buy
 the basket.**

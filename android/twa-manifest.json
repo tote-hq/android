@@ -1,0 +1,13 @@
+{
+  "fallbackType": "webview",
+  "generatorApp": "solana-mobile",
+  "host": "sol.changuito.me",
+  "launcherName": "Changuito",
+  "name": "Changuito",
+  "packageId": "me.changuito.app",
+  "startUrl": "/",
+  "signingKey": {
+    "alias": "changuito",
+    "path": "keystore/changuito-release.keystore"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Changuito",
+  "short_name": "Changuito",
+  "description": "Tu súper en Argentina, armado por un agente y pagado en USDC.",
+  "lang": "es-AR",
+  "start_url": "https://sol.changuito.me/",
+  "scope": "https://sol.changuito.me/",
+  "display": "standalone",
+  "background_color": "#FAFAF7",
+  "theme_color": "#F4B942",
+  "icons": [
+    {
+      "src": "icon-foreground.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

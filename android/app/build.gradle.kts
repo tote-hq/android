@@ -56,7 +56,7 @@ val hasReleaseSigning =
         webShellSigningKeyAlias != null
 
 android {
-    namespace = "me.changuito.app"
+    namespace = "me.changuito.sol"
     compileSdk {
         version = release(37)
     }

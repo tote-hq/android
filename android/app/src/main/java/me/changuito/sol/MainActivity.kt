@@ -1,4 +1,4 @@
-package me.changuito.app
+package me.changuito.sol
 
 import android.annotation.SuppressLint
 import android.os.Bundle
@@ -46,7 +46,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import me.changuito.app.ui.theme.WebShellTheme
+import me.changuito.sol.ui.theme.WebShellTheme
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {

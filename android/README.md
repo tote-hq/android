@@ -5,7 +5,7 @@ Webshell de Android que abre [https://sol.changuito.me](https://sol.changuito.me
 | | |
 |---|---|
 | Nombre en el launcher | Changuito |
-| Application id | `me.changuito.app` |
+| Application id | `me.changuito.sol` |
 | URL | `https://sol.changuito.me/` |
 | `versionCode` / `versionName` | `1` / `1.0.0` |
 | minSdk / targetSdk / compileSdk | 28 / 37 / 37 |
@@ -20,7 +20,7 @@ npx solana-mobile@0.6.0 webshell init android \
   --manifest store-listing/web-manifest.json \
   --url https://sol.changuito.me/ \
   --app-name Changuito \
-  --application-id me.changuito.app \
+  --application-id me.changuito.sol \
   --version-code 1 \
   --version-name 1.0.0 \
   --keystore-path keystore/changuito-release.keystore \

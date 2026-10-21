@@ -4,6 +4,7 @@ Textos e imágenes para [publish.solanamobile.com](https://publish.solanamobile.
 
 | Archivo | Uso | Medida |
 |---|---|---|
+| Paquete Android | `me.changuito.sol` (`applicationId` y namespace) | — |
 | `icon-512.png` | Ícono de la ficha. Mascota sobre girasol `#F4B942` | 512×512 PNG |
 | `icon-foreground.png` | Frente del ícono adaptativo de la shell (fondo transparente). No hace falta subirlo a la ficha | 512×512 PNG |
 | `banner-1200x600.png` | Banner (`purpose: banner`) | 1200×600 PNG |

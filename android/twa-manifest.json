@@ -4,7 +4,7 @@
   "host": "sol.changuito.me",
   "launcherName": "Changuito",
   "name": "Changuito",
-  "packageId": "me.changuito.app",
+  "packageId": "me.changuito.sol",
   "startUrl": "/",
   "signingKey": {
     "alias": "changuito",

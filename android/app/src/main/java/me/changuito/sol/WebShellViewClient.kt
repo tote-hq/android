@@ -1,4 +1,4 @@
-package me.changuito.app
+package me.changuito.sol
 
 import android.app.Activity
 import android.content.ActivityNotFoundException

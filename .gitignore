@@ -17,6 +17,15 @@ target/
 !.env*.example
 .secrets/
 *.keystore.json
+*.keystore
+*.jks
+*.apk
+*.aab
+android/keystore/*
+!android/keystore/.gitignore
+android/local.properties
+android/.gradle/
+android/**/build/
 
 # Generated at deploy time, recorded in deployments.json instead
 .stellar/

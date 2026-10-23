@@ -1,0 +1,23 @@
+*.iml
+.gradle
+/local.properties
+.local/
+
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+
+.idea
+
+# Release signing. Losing this key means the dApp Store app cannot be updated.
+# The file is created by hand (see README). Never commit it.
+/keystore/*
+!/keystore/.gitignore
+*.keystore
+*.jks
+*.apk
+*.aab

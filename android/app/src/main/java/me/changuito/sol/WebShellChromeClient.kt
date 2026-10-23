@@ -13,6 +13,7 @@ import android.webkit.WebViewClient
 class WebShellChromeClient(
     private val onProgressChanged: (Int) -> Unit,
     private val isDebug: Boolean,
+    private val scopeHostProvider: () -> String = { "" },
 ) : WebChromeClient() {
     override fun onProgressChanged(
         view: WebView,
@@ -48,33 +49,40 @@ class WebShellChromeClient(
         isUserGesture: Boolean,
         resultMsg: Message,
     ): Boolean {
-        // Handle window.open() and target="_blank" links (used by OAuth
-        // flows like Privy, social logins, etc.).  Open the URL in the
-        // system browser so the user can complete the flow there.  The
+        // Handle window.open() and target="_blank". Privy opens Google this
+        // way. Login hosts load in the main WebView so the PKCE values written
+        // to its localStorage are still there when Google redirects back.
+        // Any other http(s) URL still opens in the system browser. The
         // temporary WebView exists only to capture the popup's target URL
-        // and is destroyed once the URL has been handed off.
+        // and is destroyed once that URL has been handed off.
+        val mainView = view
         val newWebView = WebView(view.context)
         newWebView.webViewClient =
             object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(
-                    view: WebView,
+                    popup: WebView,
                     request: WebResourceRequest,
                 ): Boolean {
-                    // The popup URL is page-controlled: only browsable http(s) targets may launch,
-                    // matching the main frame's intent policy in WebShellViewClient.
+                    // The popup URL is page-controlled: only browsable http(s)
+                    // targets may load or launch, matching the main frame's
+                    // policy in WebShellViewClient.
                     val scheme = request.url.scheme?.lowercase()
                     if (scheme == "http" || scheme == "https") {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, request.url)
-                            intent.addCategory(Intent.CATEGORY_BROWSABLE)
-                            view.context.startActivity(intent)
-                        } catch (_: ActivityNotFoundException) {
-                            if (isDebug) {
-                                Log.w(TAG, "No activity found to handle popup URL: ${request.url}")
+                        if (isInAppNavigationHost(request.url.host, scopeHostProvider.invoke())) {
+                            mainView.loadUrl(request.url.toString())
+                        } else {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, request.url)
+                                intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                                popup.context.startActivity(intent)
+                            } catch (_: ActivityNotFoundException) {
+                                if (isDebug) {
+                                    Log.w(TAG, "No activity found to handle popup URL: ${request.url}")
+                                }
                             }
                         }
                     }
-                    view.post { view.destroy() }
+                    popup.post { popup.destroy() }
                     return true
                 }
             }

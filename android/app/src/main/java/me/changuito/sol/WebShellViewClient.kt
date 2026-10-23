@@ -10,6 +10,40 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.net.toUri
 
+/**
+ * Hosts that must stay inside this WebView.
+ *
+ * Privy writes `privy:oauth:state` and `privy:oauth:code_verifier` into the
+ * shell's localStorage before sending the shopper to Google. Opening those
+ * hosts in system Chrome drops that PKCE pair and leaves the app. Everything
+ * else still goes out: a product link is not a login.
+ *
+ * [host] is matched case-insensitively against [scopeHost], `changuito.me`,
+ * `privy.io`, the Google OAuth hosts, and their subdomains.
+ */
+internal fun isInAppNavigationHost(host: String?, scopeHost: String): Boolean {
+    val normalized = host?.trim()?.lowercase().orEmpty()
+    if (normalized.isEmpty()) return false
+
+    val scope = scopeHost.trim().lowercase()
+    if (scope.isNotEmpty() && normalized == scope) return true
+
+    return IN_APP_HOST_ROOTS.any { root ->
+        normalized == root || normalized.endsWith(".$root")
+    }
+}
+
+private val IN_APP_HOST_ROOTS =
+    listOf(
+        "changuito.me",
+        "privy.io",
+        "google.com",
+        "gstatic.com",
+        "googleapis.com",
+        // Google sometimes sends the account chooser here. Not all of YouTube.
+        "accounts.youtube.com",
+    )
+
 open class WebShellViewClient(
     private val context: Context,
     private val scopeHostProvider: () -> String,
@@ -47,7 +81,9 @@ open class WebShellViewClient(
             }
 
             "http", "https" -> {
-                if (url.host.equals(scopeHostProvider.invoke(), ignoreCase = true)) {
+                // false: the WebView loads the URL itself. true: we consumed it
+                // by handing it to another app.
+                if (isInAppNavigationHost(url.host, scopeHostProvider.invoke())) {
                     false
                 } else {
                     launchExternal(Intent(Intent.ACTION_VIEW, url))

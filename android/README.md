@@ -182,7 +182,7 @@ Este PR no toca ese repo. Nada de esto está hecho en `https://sol.changuito.me`
 - [ ] **Terceros** que ven datos (Privy, el modelo, Día, VTEX, el RPC de Solana) cubiertos por esa política.
 - [ ] **Datos regulados.** DNI, clave de Día, código postal, pago. La política pide el mínimo, cifrado en tránsito y en reposo, y documentación si el escrow cuenta como servicio financiero regulado. Eso es una decisión legal, no un flag.
 - [ ] **Alcohol.** Día puede vender alcohol. La política prohíbe facilitárselo a menores. Falta decidir si hay control de edad.
-- [ ] **Probar MWA dentro de la shell** en un Android con una billetera, después del paquete de arriba. Y probar el login de Privy: la shell manda `window.open` al navegador del sistema, así que el retorno a la WebView no está garantizado.
+- [ ] **Probar MWA dentro de la shell** en un Android con una billetera, después del paquete de arriba. El login de Privy con Google se queda en la WebView (hosts de Privy y de Google, user agent sin `; wv` ni `Version/4.0`) para no perder el PKCE de `localStorage`. El resto de los hosts http(s) sigue abriéndose en el navegador del sistema.
 
 ## Preguntas abiertas
 

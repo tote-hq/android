@@ -81,6 +81,9 @@ fun WebShellScreen() {
     var isRefreshing by remember { mutableStateOf(false) }
     var hasError by remember { mutableStateOf(false) }
     var showSplash by remember { mutableStateOf(true) }
+    // Read from Compose state. webView.canGoBack() does not invalidate
+    // composition, so Back stayed disabled through the Google screens.
+    var canGoBack by remember { mutableStateOf(false) }
 
     val webView =
         remember {
@@ -124,6 +127,7 @@ fun WebShellScreen() {
                             isLoading = newProgress < 100
                         },
                         isDebug = BuildConfig.DEBUG,
+                        scopeHostProvider = { scopeHost },
                     )
 
                 webViewClient =
@@ -135,7 +139,21 @@ fun WebShellScreen() {
                             super.onPageFinished(view, url)
                             hasError = false
                             isRefreshing = false
-                            probeViewportAndMaybePatch(view, BuildConfig.DEBUG)
+                            canGoBack = view.canGoBack()
+                            // The viewport patch is shop CSS. Leaving it on
+                            // accounts.google.com or auth.privy.io breaks their layout.
+                            if (url?.toUri()?.host.equals(scopeHost, ignoreCase = true)) {
+                                probeViewportAndMaybePatch(view, BuildConfig.DEBUG)
+                            }
+                        }
+
+                        override fun doUpdateVisitedHistory(
+                            view: WebView,
+                            url: String?,
+                            isReload: Boolean,
+                        ) {
+                            super.doUpdateVisitedHistory(view, url, isReload)
+                            canGoBack = view.canGoBack()
                         }
 
                         override fun onReceivedError(
@@ -184,7 +202,7 @@ fun WebShellScreen() {
         }
     }
 
-    BackHandler(enabled = webView.canGoBack()) {
+    BackHandler(enabled = canGoBack) {
         webView.goBack()
     }
 
@@ -303,14 +321,26 @@ private fun decodeJavascriptStringResult(rawResult: String?): String {
         .getOrDefault(rawResult)
 }
 
-private fun appendUserAgentMarker(baseUserAgent: String): String {
+/**
+ * Seeker marker for sol.changuito.me, on a user agent Google will accept.
+ *
+ * `accounts.google.com/o/oauth2/v2/auth` answers 403 `disallowed_useragent`
+ * when it sees the Android WebView tokens `; wv` or `Version/4.0`. Those
+ * come off [baseUserAgent] before `Solana Mobile Web Shell` is appended, so
+ * the shop still recognises the shell and Google sees Chrome Mobile.
+ */
+internal fun appendUserAgentMarker(baseUserAgent: String): String {
     val marker = "Solana Mobile Web Shell"
-    if (marker.isEmpty()) return baseUserAgent.trim()
-    return if (baseUserAgent.contains(marker)) {
-        baseUserAgent.trim()
-    } else {
-        "${baseUserAgent.trim()} $marker".trim()
-    }
+    val stripped =
+        baseUserAgent
+            .replace("; wv)", ")")
+            .replace("; wv;", ";")
+            .replace(Regex("""\s*;\s*wv\b"""), "")
+            .replace(Regex("""\bVersion/\d+\.\d+\s*"""), "")
+            .replace(Regex("""\s+"""), " ")
+            .trim()
+    if (marker.isEmpty() || stripped.contains(marker)) return stripped
+    return "$stripped $marker".trim()
 }
 
 private fun normalizeHttpUrl(): String? {

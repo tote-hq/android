@@ -131,7 +131,7 @@ fun WebShellScreen() {
                     )
 
                 webViewClient =
-                    object : WebShellViewClient(context, scopeHostProvider = { scopeHost }) {
+                    object : WebShellViewClient(context, scopeHostProvider = { scopeHost }, isDebug = BuildConfig.DEBUG) {
                         override fun onPageFinished(
                             view: WebView,
                             url: String?,

@@ -28,10 +28,37 @@ internal fun isInAppNavigationHost(host: String?, scopeHost: String): Boolean {
     val scope = scopeHost.trim().lowercase()
     if (scope.isNotEmpty() && normalized == scope) return true
 
+    if (isGoogleCountryHost(normalized)) return true
+
     return IN_APP_HOST_ROOTS.any { root ->
         normalized == root || normalized.endsWith(".$root")
     }
 }
+
+/**
+ * Google's own domains in any country: `google.<tld>`, `google.co.<cc>` and
+ * `google.com.<cc>`, plus subdomains (e.g. `accounts.google.com.ar`). After
+ * the account chooser, Google hops through `accounts.google.<cc>/SetSID` to
+ * sync its session cookie; that hop must stay in the WebView too.
+ *
+ * Anchored on labels: `google` must be followed by exactly the TLD part
+ * and nothing else, so `google.com.evil.io` or `notgoogle.com` never match.
+ */
+internal fun isGoogleCountryHost(host: String): Boolean {
+    val labels = host.split('.')
+    if (labels.any { it.isEmpty() }) return false
+    val i = labels.lastIndexOf("google")
+    if (i < 0 || (i > 0 && labels.subList(0, i).any { !LABEL.matches(it) })) return false
+    val suffix = labels.subList(i + 1, labels.size)
+    return when (suffix.size) {
+        1 -> suffix[0] == "com" || CC.matches(suffix[0])
+        2 -> (suffix[0] == "co" || suffix[0] == "com") && CC.matches(suffix[1])
+        else -> false
+    }
+}
+
+private val CC = Regex("^[a-z]{2}$")
+private val LABEL = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
 
 private val IN_APP_HOST_ROOTS =
     listOf(
@@ -39,6 +66,7 @@ private val IN_APP_HOST_ROOTS =
         "privy.io",
         "google.com",
         "gstatic.com",
+        "googleusercontent.com",
         "googleapis.com",
         // Google sometimes sends the account chooser here. Not all of YouTube.
         "accounts.youtube.com",

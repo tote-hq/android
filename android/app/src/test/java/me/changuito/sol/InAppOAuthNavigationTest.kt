@@ -114,5 +114,18 @@ class InAppOAuthNavigationTest {
         assertEquals("https://accounts.google.com/o/oauth2/v2/auth?params=code,state", out)
         assertEquals("<empty>", redactUrlForLog(null))
     }
-}
 
+    @Test
+    fun googleCountryDomainsStayInApp() {
+        for (h in listOf("accounts.google.com.ar", "accounts.google.com.br", "www.google.co.uk", "google.de", "accounts.google.com", "lh3.googleusercontent.com")) {
+            assertTrue(h, isInAppNavigationHost(h, "sol.changuito.me"))
+        }
+    }
+
+    @Test
+    fun lookalikeGoogleHostsDoNotStayInApp() {
+        for (h in listOf("google.com.evil.io", "notgoogle.com", "evilgoogle.com", "google.com.ar.attacker.net", "google.evil.co.uk", "google..ar")) {
+            assertFalse(h, isInAppNavigationHost(h, "sol.changuito.me"))
+        }
+    }
+}

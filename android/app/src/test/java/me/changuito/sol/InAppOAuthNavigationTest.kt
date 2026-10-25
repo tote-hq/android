@@ -89,4 +89,43 @@ class InAppOAuthNavigationTest {
         assertFalse(ua.contains("Version/"))
         assertEquals(1, Regex("""Solana Mobile Web Shell""").findAll(ua).count())
     }
+
+    @Test
+    fun intentFallbackToGoogleStaysInWebView() {
+        val url = "https://accounts.google.com/signin/oauth?client_id=x&state=y"
+        assertEquals(url, inAppUrlForIntent(null, url, "sol.changuito.me"))
+    }
+
+    @Test
+    fun intentDataToPrivyStaysInWebView() {
+        val url = "https://auth.privy.io/api/v1/oauth/callback?code=c"
+        assertEquals(url, inAppUrlForIntent(url, null, "sol.changuito.me"))
+    }
+
+    @Test
+    fun intentToOtherHostIsNotKept() {
+        assertEquals(null, inAppUrlForIntent("https://play.google.com.evil.com/x", "market://details?id=x", "sol.changuito.me"))
+        assertEquals(null, inAppUrlForIntent("javascript:alert(1)", null, "sol.changuito.me"))
+    }
+
+    @Test
+    fun redactedLogKeepsOnlyParamNames() {
+        val out = redactUrlForLog("https://accounts.google.com/o/oauth2/v2/auth?code=SECRET&state=ABC#frag")
+        assertEquals("https://accounts.google.com/o/oauth2/v2/auth?params=code,state", out)
+        assertEquals("<empty>", redactUrlForLog(null))
+    }
+
+    @Test
+    fun googleCountryDomainsStayInApp() {
+        for (h in listOf("accounts.google.com.ar", "accounts.google.com.br", "www.google.co.uk", "google.de", "accounts.google.com", "lh3.googleusercontent.com")) {
+            assertTrue(h, isInAppNavigationHost(h, "sol.changuito.me"))
+        }
+    }
+
+    @Test
+    fun lookalikeGoogleHostsDoNotStayInApp() {
+        for (h in listOf("google.com.evil.io", "notgoogle.com", "evilgoogle.com", "google.com.ar.attacker.net", "google.evil.co.uk", "google..ar")) {
+            assertFalse(h, isInAppNavigationHost(h, "sol.changuito.me"))
+        }
+    }
 }

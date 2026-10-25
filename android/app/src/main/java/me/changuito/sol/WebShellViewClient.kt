@@ -28,10 +28,37 @@ internal fun isInAppNavigationHost(host: String?, scopeHost: String): Boolean {
     val scope = scopeHost.trim().lowercase()
     if (scope.isNotEmpty() && normalized == scope) return true
 
+    if (isGoogleCountryHost(normalized)) return true
+
     return IN_APP_HOST_ROOTS.any { root ->
         normalized == root || normalized.endsWith(".$root")
     }
 }
+
+/**
+ * Google's own domains in any country: `google.<tld>`, `google.co.<cc>` and
+ * `google.com.<cc>`, plus subdomains (e.g. `accounts.google.com.ar`). After
+ * the account chooser, Google hops through `accounts.google.<cc>/SetSID` to
+ * sync its session cookie; that hop must stay in the WebView too.
+ *
+ * Anchored on labels: `google` must be followed by exactly the TLD part
+ * and nothing else, so `google.com.evil.io` or `notgoogle.com` never match.
+ */
+internal fun isGoogleCountryHost(host: String): Boolean {
+    val labels = host.split('.')
+    if (labels.any { it.isEmpty() }) return false
+    val i = labels.lastIndexOf("google")
+    if (i < 0 || (i > 0 && labels.subList(0, i).any { !LABEL.matches(it) })) return false
+    val suffix = labels.subList(i + 1, labels.size)
+    return when (suffix.size) {
+        1 -> suffix[0] == "com" || CC.matches(suffix[0])
+        2 -> (suffix[0] == "co" || suffix[0] == "com") && CC.matches(suffix[1])
+        else -> false
+    }
+}
+
+private val CC = Regex("^[a-z]{2}$")
+private val LABEL = Regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
 
 private val IN_APP_HOST_ROOTS =
     listOf(
@@ -39,14 +66,63 @@ private val IN_APP_HOST_ROOTS =
         "privy.io",
         "google.com",
         "gstatic.com",
+        "googleusercontent.com",
         "googleapis.com",
         // Google sometimes sends the account chooser here. Not all of YouTube.
         "accounts.youtube.com",
     )
 
+/**
+ * Log-safe form of [url]: scheme, host, path and query parameter names only.
+ * Values (OAuth `code`, `state`, tokens) never reach logcat.
+ */
+internal fun redactUrlForLog(url: String?): String {
+    if (url.isNullOrBlank()) return "<empty>"
+    return try {
+        val uri = java.net.URI(url.substringBefore('#'))
+        val names =
+            uri.rawQuery
+                ?.split('&')
+                ?.mapNotNull { it.substringBefore('=').takeIf { n -> n.isNotEmpty() } }
+                .orEmpty()
+        val base =
+            if (uri.isOpaque) {
+                "${uri.scheme}:<opaque>"
+            } else {
+                "${uri.scheme}://${uri.host.orEmpty()}${uri.rawPath.orEmpty()}"
+            }
+        if (names.isEmpty()) base else "$base?params=${names.joinToString(",")}"
+    } catch (_: Exception) {
+        "<unparseable>"
+    }
+}
+
+/**
+ * For a parsed `intent://` URL, returns the https URL that must open inside
+ * the WebView when the intent targets a login host, or null otherwise.
+ * Checks the `browser_fallback_url` extra first, then the intent data
+ * (an `intent://host/path#Intent;scheme=https;end` URL carries it there).
+ */
+internal fun inAppUrlForIntent(
+    dataUrl: String?,
+    fallbackUrl: String?,
+    scopeHost: String,
+): String? {
+    for (candidate in listOf(fallbackUrl, dataUrl)) {
+        if (candidate.isNullOrBlank()) continue
+        val uri = runCatching { java.net.URI(candidate) }.getOrNull() ?: continue
+        val scheme = uri.scheme?.lowercase()
+        if ((scheme == "http" || scheme == "https") && isInAppNavigationHost(uri.host, scopeHost)) {
+            return candidate
+        }
+    }
+    return null
+}
+
 open class WebShellViewClient(
     private val context: Context,
     private val scopeHostProvider: () -> String,
+    private val isDebug: Boolean = false,
 ) : WebViewClient() {
     override fun shouldOverrideUrlLoading(
         view: WebView,
@@ -72,7 +148,7 @@ open class WebShellViewClient(
             }
 
             "intent" -> {
-                handleIntentScheme(url.toString())
+                handleIntentScheme(view, url.toString())
                 true
             }
 
@@ -98,9 +174,23 @@ open class WebShellViewClient(
         }
     }
 
-    private fun handleIntentScheme(url: String) {
+    private fun handleIntentScheme(view: WebView, url: String) {
         try {
             val intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+            if (isDebug) Log.d(TAG, "intent:// handled: ${redactUrlForLog(intent.dataString)}")
+            // Google and Privy must never leave the WebView: the PKCE pair
+            // lives in its localStorage. Load the https equivalent here.
+            val inApp =
+                inAppUrlForIntent(
+                    dataUrl = intent.dataString,
+                    fallbackUrl = intent.getStringExtra("browser_fallback_url"),
+                    scopeHost = scopeHostProvider.invoke(),
+                )
+            if (inApp != null) {
+                if (isDebug) Log.d(TAG, "intent:// kept in WebView: ${redactUrlForLog(inApp)}")
+                view.loadUrl(inApp)
+                return
+            }
             // Sanitize the page-controlled intent: only implicit, browsable
             // targets may launch — never explicit components, selector
             // intents, or URI permission grants.
@@ -130,6 +220,7 @@ open class WebShellViewClient(
     }
 
     private fun launchExternal(intent: Intent): Boolean {
+        if (isDebug) Log.d(TAG, "launchExternal: ${redactUrlForLog(intent.dataString)}")
         if (context !is Activity) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }

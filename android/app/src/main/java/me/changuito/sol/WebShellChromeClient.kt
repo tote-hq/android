@@ -57,33 +57,53 @@ class WebShellChromeClient(
         // and is destroyed once that URL has been handed off.
         val mainView = view
         val newWebView = WebView(view.context)
+        // A popup can start as about:blank and get its real URL later, so
+        // every http(s) navigation of the temporary WebView is routed here,
+        // whether it arrives via shouldOverrideUrlLoading or onPageStarted.
+        var handled = false
+        fun route(popup: WebView, url: String?) {
+            if (handled) return
+            if (isDebug) Log.d(TAG, "onCreateWindow URL: ${redactUrlForLog(url)}")
+            val uri = url?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() } ?: return
+            val scheme = uri.scheme?.lowercase()
+            // about:blank and other non-web schemes: wait for the real URL.
+            if (scheme != "http" && scheme != "https") return
+            handled = true
+            if (isInAppNavigationHost(uri.host, scopeHostProvider.invoke())) {
+                mainView.loadUrl(url)
+            } else {
+                try {
+                    if (isDebug) Log.d(TAG, "launchExternal (popup): ${redactUrlForLog(url)}")
+                    val intent = Intent(Intent.ACTION_VIEW, uri)
+                    intent.addCategory(Intent.CATEGORY_BROWSABLE)
+                    popup.context.startActivity(intent)
+                } catch (_: ActivityNotFoundException) {
+                    if (isDebug) Log.w(TAG, "No activity found to handle popup URL")
+                }
+            }
+            popup.post {
+                popup.stopLoading()
+                popup.destroy()
+            }
+        }
         newWebView.webViewClient =
             object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(
                     popup: WebView,
                     request: WebResourceRequest,
                 ): Boolean {
-                    // The popup URL is page-controlled: only browsable http(s)
-                    // targets may load or launch, matching the main frame's
-                    // policy in WebShellViewClient.
-                    val scheme = request.url.scheme?.lowercase()
-                    if (scheme == "http" || scheme == "https") {
-                        if (isInAppNavigationHost(request.url.host, scopeHostProvider.invoke())) {
-                            mainView.loadUrl(request.url.toString())
-                        } else {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, request.url)
-                                intent.addCategory(Intent.CATEGORY_BROWSABLE)
-                                popup.context.startActivity(intent)
-                            } catch (_: ActivityNotFoundException) {
-                                if (isDebug) {
-                                    Log.w(TAG, "No activity found to handle popup URL: ${request.url}")
-                                }
-                            }
-                        }
-                    }
-                    popup.post { popup.destroy() }
+                    // Page-controlled URL: only browsable http(s) targets may
+                    // load or launch, matching WebShellViewClient's policy.
+                    route(popup, request.url.toString())
                     return true
+                }
+
+                override fun onPageStarted(
+                    popup: WebView,
+                    url: String?,
+                    favicon: android.graphics.Bitmap?,
+                ) {
+                    route(popup, url)
                 }
             }
         newWebView.webChromeClient =

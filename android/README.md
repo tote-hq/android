@@ -7,7 +7,7 @@ Webshell de Android que abre [https://sol.changuito.me](https://sol.changuito.me
 | Nombre en el launcher | Changuito |
 | Application id | `me.changuito.sol` |
 | URL | `https://sol.changuito.me/` |
-| `versionCode` / `versionName` | `1` / `1.0.0` |
+| `versionCode` / `versionName` | `4` / `1.0.3` |
 | minSdk / targetSdk / compileSdk | 28 / 37 / 37 |
 | CLI que generó el proyecto | `solana-mobile` 0.6.0, el 21 oct 2026 |
 | Alias del keystore de release | `changuito` |
@@ -29,10 +29,11 @@ npx solana-mobile@0.6.0 webshell init android \
 
 Ese `init` crea un keystore si el archivo no existe. El que se generó en la máquina de build se borró a propósito: no es la clave de publicación. La clave de release la crea Simoneth, una sola vez, con los pasos de abajo. No vuelvas a correr `webshell init` encima de este directorio si el keystore de release ya existe: un `init` con la ruta vacía genera otra clave y esa APK no puede actualizar la que ya está en la tienda.
 
-Dos ediciones encima de la plantilla, y por qué:
+Tres ediciones encima de la plantilla, y por qué:
 
 - El ícono adaptativo lo aplicó el CLI desde `store-listing/icon-foreground.png` (la mascota, fondo girasol `#F4B942`, splash `#FAFAF7`). Los `mipmap-*/*.webp` de la plantilla seguían siendo el robot de Android; se reemplazaron por el ícono de la ficha en cada densidad.
-- En `MainActivity.kt`, el único texto que ve la persona si la página no carga pasó de `Unable to load page` / `Retry` a `No se pudo abrir Changuito` / `Reintentar`. El resto de la shell quedó como la genera el CLI, incluido el puente de intents.
+- En `MainActivity.kt`, el único texto que ve la persona si la página no carga pasó de `Unable to load page` / `Retry` a `No se pudo abrir Changuito` / `Reintentar`.
+- La plantilla envuelve el WebView en un `SwipeRefreshLayout` que llama a `reload()` al soltar un arrastre hacia abajo. El documento de la tienda no scrollea (el hilo scrollea adentro), así que ese gesto recargaba la página y perdía el chat, el carrito y la sesión. El WebView queda solo: el scroll, el fling y el brillo de overscroll siguen, y la única recarga es el botón Reintentar. El puente de intents quedó como lo genera el CLI.
 
 ## Lo que no entra a git
 

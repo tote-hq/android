@@ -39,13 +39,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import me.changuito.sol.ui.theme.WebShellTheme
 import org.json.JSONObject
 
@@ -73,12 +71,9 @@ fun WebShellScreen() {
         return
     }
     val scopeHost = remember(startUrl) { startUrl.toUri().host.orEmpty() }
-    val refreshIndicatorColor = MaterialTheme.colorScheme.primary.toArgb()
-    val refreshIndicatorBackgroundColor = MaterialTheme.colorScheme.surface.toArgb()
 
     var progress by remember { mutableFloatStateOf(0f) }
     var isLoading by remember { mutableStateOf(true) }
-    var isRefreshing by remember { mutableStateOf(false) }
     var hasError by remember { mutableStateOf(false) }
     var showSplash by remember { mutableStateOf(true) }
     // Read from Compose state. webView.canGoBack() does not invalidate
@@ -138,7 +133,6 @@ fun WebShellScreen() {
                         ) {
                             super.onPageFinished(view, url)
                             hasError = false
-                            isRefreshing = false
                             canGoBack = view.canGoBack()
                             // The viewport patch is shop CSS. Leaving it on
                             // accounts.google.com or auth.privy.io breaks their layout.
@@ -164,7 +158,6 @@ fun WebShellScreen() {
                             super.onReceivedError(view, request, error)
                             if (request?.isForMainFrame == true) {
                                 hasError = true
-                                isRefreshing = false
                             }
                         }
                     }
@@ -172,32 +165,16 @@ fun WebShellScreen() {
                 loadUrl(startUrl)
             }
         }
-    val swipeRefreshLayout =
-        remember(webView, refreshIndicatorColor, refreshIndicatorBackgroundColor) {
-            SwipeRefreshLayout(context).apply {
-                layoutParams =
-                    ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                    )
-                setColorSchemeColors(
-                    refreshIndicatorColor,
-                )
-                setProgressBackgroundColorSchemeColor(refreshIndicatorBackgroundColor)
-                setOnChildScrollUpCallback { _, _ -> webView.canScrollVertically(-1) }
-                setOnRefreshListener {
-                    hasError = false
-                    isLoading = true
-                    isRefreshing = true
-                    webView.reload()
-                }
-                addView(webView)
-            }
-        }
 
+    // Host the WebView directly. The solana-mobile template wraps it in a
+    // SwipeRefreshLayout whose listener calls reload(). The shop document
+    // never scrolls — the thread scrolls inside the page — so
+    // canScrollVertically(-1) stays false and a downward drag or overscroll
+    // reloads the document, dropping the chat, the cart and the session.
+    // Momentum and the overscroll glow stay. The only reload is Reintentar
+    // on the error screen.
     DisposableEffect(Unit) {
         onDispose {
-            swipeRefreshLayout.removeView(webView)
             webView.destroy()
         }
     }
@@ -212,8 +189,7 @@ fun WebShellScreen() {
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .windowInsetsPadding(WindowInsets.systemBars),
-        swipeRefreshLayout = swipeRefreshLayout,
-        isRefreshing = isRefreshing,
+        webView = webView,
         isLoading = isLoading,
         progress = progress,
         hasError = hasError,
@@ -221,7 +197,6 @@ fun WebShellScreen() {
         onRetry = {
             hasError = false
             isLoading = true
-            isRefreshing = false
             webView.reload()
         },
     )
@@ -230,8 +205,7 @@ fun WebShellScreen() {
 @Composable
 private fun WebViewLayer(
     modifier: Modifier,
-    swipeRefreshLayout: SwipeRefreshLayout,
-    isRefreshing: Boolean,
+    webView: WebView,
     isLoading: Boolean,
     progress: Float,
     hasError: Boolean,
@@ -241,15 +215,13 @@ private fun WebViewLayer(
     Box(modifier = modifier) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { swipeRefreshLayout },
+            factory = { webView },
             update = { view ->
                 view.layoutParams =
                     ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT,
                     )
-                view.isEnabled = !hasError
-                view.isRefreshing = isRefreshing
             },
         )
 

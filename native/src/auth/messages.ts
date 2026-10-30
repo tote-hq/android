@@ -7,13 +7,15 @@ const SESSION_KEY: Record<SessionErrorCode, CopyKey> = {
   wallet_missing: 'errorMissing',
   invalid_identity: 'errorIdentity',
   association_failed: 'errorAssociation',
-  human_required: 'errorHuman',
+  refused: 'errorRefused',
+  rate_limited: 'errorRate',
+  session_closed: 'errorClosed',
   network: 'errorNetwork',
   proof_invalid: 'errorProof',
   unconfigured: 'errorUnconfigured',
   invalid_address: 'errorInvalidAddress',
   empty_signature: 'errorEmptySignature',
-  cookie_missing: 'errorCookie',
+  token_missing: 'errorToken',
   unknown: 'errorUnknown',
 }
 

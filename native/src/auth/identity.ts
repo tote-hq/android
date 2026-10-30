@@ -20,11 +20,19 @@ export const APP_IDENTITY = {
   icon: 'icons/icon-512.png',
 } as const
 
-export const USER_COOKIE = 'chg_user'
-
 export const APP_VERSION = '2.0.0'
 
-export const NATIVE_USER_AGENT = `Changuito/${APP_VERSION} (Android; native)`
+/** Sent on every session call. A browser page cannot use this name, and it is not on the site's crawler list. */
+export const NATIVE_USER_AGENT = `ChanguitoSeeker/${APP_VERSION}`
+
+/**
+ * The site answers 403 to these agents even on the wallet routes.
+ * Kept here so a future change of `NATIVE_USER_AGENT` cannot land on the list.
+ */
+export const BLOCKED_APP_USER_AGENT =
+  /GPTBot|ChatGPT-User|Google-Extended|ClaudeBot|anthropic-ai|Anthropic|Bytespider|CCBot|Amazonbot|PerplexityBot|Diffbot|FacebookBot|meta-externalagent|cohere-ai|Cohere|Applebot-Extended|Omgilibot|Omgili|YouBot|ImagesiftBot|Ai2Bot|Timpibot|Webzio-Extended|PetalBot|Scrapy|python-requests|curl\/|wget\/|Go-http-client|aiohttp|httpx|node-fetch|axios\//i
+
+export const SESSION_TRANSPORT_HEADER = 'x-chg-session-transport'
 
 export function isRelativeIdentityIcon(icon: string): boolean {
   if (!icon || icon.includes(':') || icon.startsWith('/') || icon.startsWith('//')) return false

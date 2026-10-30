@@ -37,36 +37,51 @@ async function verifyEd25519(publicKey: Uint8Array, message: string, signature: 
   }
 }
 
-function jsonResponse(status: number, body: unknown, cookie?: string): Response {
-  const headers = new Headers({ 'content-type': 'application/json', 'cache-control': 'no-store' })
-  if (cookie) headers.append('set-cookie', cookie)
-  return new Response(JSON.stringify(body), { status, headers })
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+  })
 }
 
-function readCookie(header: string | null, name: string): string | null {
-  if (!header) return null
-  for (const part of header.split(';')) {
-    const eq = part.indexOf('=')
-    if (eq === -1) continue
-    if (part.slice(0, eq).trim() !== name) continue
-    const value = part.slice(eq + 1).trim()
-    try {
-      return decodeURIComponent(value)
-    } catch {
-      return value
-    }
-  }
-  return null
+/** Same rule as the site: the bearer is returned only when the client asked and sent no browser headers. */
+function wantsBearer(headers: Headers): boolean {
+  const raw = headers.get('x-chg-session-transport')
+  if (raw == null || raw.trim().toLowerCase() !== 'bearer') return false
+  if (headers.get('origin')) return false
+  if (headers.get('sec-fetch-site')) return false
+  if (headers.get('sec-fetch-mode')) return false
+  return true
 }
 
-export function createMemorySessionFetch(options?: { secret?: string; humanGate?: boolean; host?: string }): FetchLike {
+function presentedBearer(headers: Headers): string | null {
+  const raw = headers.get('authorization')
+  if (!raw) return null
+  const match = /^Bearer ([A-Za-z0-9._-]{16,2048})$/i.exec(raw.trim())
+  return match?.[1] ?? null
+}
+
+export function createMemorySessionFetch(options?: {
+  secret?: string
+  humanGate?: boolean
+  rateLimit?: boolean
+  host?: string
+}): FetchLike {
   const secret = options?.secret ?? 'memory-session-secret'
   const host = options?.host ?? 'sol.changuito.me'
   const humanGate = options?.humanGate === true
+  const rateLimit = options?.rateLimit === true
   const pending = new Map<string, Challenge>()
   const sessions = new Map<string, string>()
+  const closed = new Set<string>()
 
   return async (url, init) => {
+    if (rateLimit) {
+      return jsonResponse(429, {
+        error: 'rate_limited',
+        message: 'Demasiados intentos. Probá de nuevo en unos minutos.',
+      })
+    }
     if (humanGate) {
       return jsonResponse(403, {
         error: 'solo_humanos',
@@ -124,13 +139,13 @@ export function createMemorySessionFetch(options?: { secret?: string; humanGate?
       const expires = Number(lines[5]?.slice('Expires: '.length))
       const claimedHost = lines[1]?.startsWith('Host: ') ? lines[1].slice('Host: '.length) : ''
       const claimedAddress = lines[2]?.startsWith('Address: ') ? lines[2].slice('Address: '.length) : ''
-      const payload = ['v1', claimedHost, claimedAddress, nonce, String(issued), String(expires)].join('\n')
-      const expected = nonce ? await hmac(secret, payload) : ''
+      const macPayload = ['v1', claimedHost, claimedAddress, nonce, String(issued), String(expires)].join('\n')
+      const expected = nonce ? await hmac(secret, macPayload) : ''
       const challenge = pending.get(nonce)
       const signature = base64ToBytes(signatureB64)
       const publicKey = decodeBase58(address)
       const signed =
-        signature && publicKey
+        signature?.length === 64 && publicKey
           ? await verifyEd25519(publicKey, message, signature)
           : false
       const fresh = challenge && challenge.message === message && challenge.address === address && challenge.expires >= Date.now()
@@ -148,21 +163,33 @@ export function createMemorySessionFetch(options?: { secret?: string; humanGate?
         })
       }
       pending.delete(nonce)
-      const token = `memory.${address}.${nonce}`
+      const exp = Date.now() + 30 * 24 * 60 * 60 * 1000
+      const token = `v2.${exp}.mem.${nonce}`
       sessions.set(token, address)
-      return jsonResponse(200, { ok: true, address }, `chg_user=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`)
+      const responseBody: { ok: true; address: string; sessionToken?: string } = { ok: true, address }
+      if (wantsBearer(headers)) responseBody.sessionToken = token
+      return jsonResponse(200, responseBody)
     }
 
     if (method === 'GET' && path === '/api/session') {
-      const token = readCookie(headers.get('cookie'), 'chg_user')
-      const address = token ? sessions.get(token) ?? null : null
-      return jsonResponse(200, { address })
+      const token = presentedBearer(headers)
+      if (!token) return jsonResponse(200, { address: null })
+      if (closed.has(token) || !sessions.has(token)) {
+        return jsonResponse(401, { error: 'session_proof_invalid' })
+      }
+      return jsonResponse(200, { address: sessions.get(token) })
     }
 
     if (method === 'POST' && path === '/api/session/logout') {
-      const token = readCookie(headers.get('cookie'), 'chg_user')
-      if (token) sessions.delete(token)
-      return jsonResponse(200, { ok: true }, 'chg_user=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0')
+      const token = presentedBearer(headers)
+      if (!token) {
+        return jsonResponse(401, { error: 'session_proof_invalid' })
+      }
+      if (closed.has(token)) return jsonResponse(200, { ok: true })
+      if (!sessions.has(token)) return jsonResponse(401, { error: 'session_proof_invalid' })
+      closed.add(token)
+      sessions.delete(token)
+      return jsonResponse(200, { ok: true })
     }
 
     return jsonResponse(404, { error: 'not_found' })

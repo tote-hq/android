@@ -13,16 +13,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { createDevWallet } from '../auth/dev-wallet.ts'
-import { deserializeJar, serializeJar, type CookieJar } from '../auth/cookies.ts'
 import { walletTitle } from '../auth/display.ts'
 import { copy, deviceLanguage, type Lang } from '../auth/i18n.ts'
-import { API_ORIGIN, USER_COOKIE } from '../auth/identity.ts'
+import { API_ORIGIN } from '../auth/identity.ts'
 import { createMemorySessionFetch } from '../auth/memory-session.ts'
 import { messageForFailure, sessionErrorFromUnknown } from '../auth/messages.ts'
-import { createSessionApi, SessionError, type SessionApi } from '../auth/session-client.ts'
+import { createSessionApi, type SessionApi } from '../auth/session-client.ts'
 import { themes, type ThemeName } from '../auth/theme.ts'
 
-const COOKIE_KEY = 'changuito.session.cookies'
+/** Secure-store key for the bearer. Never AsyncStorage, never a log. */
+const TOKEN_KEY = 'changuito.session.token'
 const LANG_KEY = 'changuito.lang'
 const THEME_KEY = 'changuito.theme'
 const MIN_TOUCH = 48
@@ -87,20 +87,21 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const [storedLang, storedTheme, storedCookies] = await Promise.all([
+      const [storedLang, storedTheme, storedToken] = await Promise.all([
         readPreference(LANG_KEY, ['es', 'en'] as const),
         readPreference(THEME_KEY, ['light', 'dark'] as const),
-        SecureStore.getItemAsync(COOKIE_KEY).catch(() => null),
+        SecureStore.getItemAsync(TOKEN_KEY).catch(() => null),
       ])
       if (cancelled) return
       if (storedLang) setLang(storedLang)
       if (storedTheme) setThemeChoice(storedTheme)
-      const jar: CookieJar = deserializeJar(storedCookies)
-      for (const [name, value] of jar) session.jar.set(name, value)
+      session.adopt(storedToken)
       try {
-        const who = session.jar.has(USER_COOKIE) ? await session.current() : null
+        const who = storedToken ? await session.current() : null
+        if (!who) await writeToken(null)
         if (!cancelled) setAddress(who)
       } catch {
+        await writeToken(null)
         if (!cancelled) setAddress(null)
       } finally {
         if (!cancelled) setReady(true)
@@ -111,11 +112,12 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
     }
   }, [session])
 
-  async function persistJar(): Promise<void> {
+  async function writeToken(token: string | null): Promise<void> {
     try {
-      await SecureStore.setItemAsync(COOKIE_KEY, serializeJar(session.jar))
+      if (token) await SecureStore.setItemAsync(TOKEN_KEY, token)
+      else await SecureStore.deleteItemAsync(TOKEN_KEY)
     } catch {
-      /* the cookie still lives in memory for this visit */
+      /* this visit still has the value in memory */
     }
   }
 
@@ -138,7 +140,7 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
         },
       })
       setPhase('finishing')
-      await persistJar()
+      await writeToken(session.token())
       setLabel(account.label ?? null)
       setAddress(signed.address)
     } catch (err) {
@@ -171,10 +173,10 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
     try {
       await session.logout()
     } catch (err) {
-      if (!(err instanceof SessionError)) setError(messageForFailure(sessionErrorFromUnknown(err), lang))
+      const wrapped = sessionErrorFromUnknown(err)
+      if (wrapped.code !== 'session_closed') setError(messageForFailure(wrapped, lang))
     } finally {
-      session.jar.clear()
-      await persistJar()
+      await writeToken(null)
       if (!mock) await wallet.disconnect().catch(() => undefined)
       setAddress(null)
       setLabel(null)

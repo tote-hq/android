@@ -2,17 +2,52 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { createDevWallet } from './dev-wallet.ts'
+import { BLOCKED_APP_USER_AGENT, NATIVE_USER_AGENT, SESSION_TRANSPORT_HEADER } from './identity.ts'
 import { createMemorySessionFetch } from './memory-session.ts'
-import { USER_COOKIE } from './identity.ts'
-import { SessionError, createSessionApi } from './session-client.ts'
+import { messageForFailure } from './messages.ts'
+import { SessionError, createSessionApi, nativeSessionHeaders, type FetchLike } from './session-client.ts'
 
 const BASE = 'https://sol.changuito.me'
 
+function spy(inner: FetchLike): { fetch: FetchLike; calls: { url: string; headers: Headers; body: string | undefined }[] } {
+  const calls: { url: string; headers: Headers; body: string | undefined }[] = []
+  return {
+    calls,
+    fetch: async (url, init) => {
+      calls.push({
+        url,
+        headers: new Headers(init?.headers),
+        body: typeof init?.body === 'string' ? init.body : undefined,
+      })
+      return inner(url, init)
+    },
+  }
+}
+
+function headerNames(headers: Headers): string[] {
+  return [...headers.keys()].map((name) => name.toLowerCase())
+}
+
+describe('native session headers', () => {
+  it('names the app and does not look like a browser or a blocked agent', () => {
+    assert.equal(NATIVE_USER_AGENT, 'ChanguitoSeeker/2.0.0')
+    assert.equal(BLOCKED_APP_USER_AGENT.test(NATIVE_USER_AGENT), false)
+    const headers = nativeSessionHeaders({ json: true, transport: true, token: null })
+    assert.equal(headers.get('user-agent'), NATIVE_USER_AGENT)
+    assert.equal(headers.get(SESSION_TRANSPORT_HEADER), 'bearer')
+    assert.equal(headers.get('origin'), null)
+    assert.equal(headers.get('sec-fetch-site'), null)
+    assert.equal(headers.get('sec-fetch-mode'), null)
+    assert.equal(headers.get('cookie'), null)
+    assert.equal(headers.get('authorization'), null)
+  })
+})
+
 describe('wallet sign-in', () => {
-  it('signs the server message and replays the session cookie', async () => {
-    const fetchImpl = createMemorySessionFetch()
+  it('asks for a bearer, stores it, and restores the address', async () => {
     const seen: string[] = []
-    const api = createSessionApi({ baseUrl: BASE, fetch: fetchImpl })
+    const traced = spy(createMemorySessionFetch())
+    const api = createSessionApi({ baseUrl: BASE, fetch: traced.fetch })
     const wallet = await createDevWallet()
     const signed = await api.signIn({
       address: wallet.address,
@@ -22,14 +57,42 @@ describe('wallet sign-in', () => {
       },
     })
     assert.equal(signed.address, wallet.address)
-    assert.equal(seen.length, 1)
     assert.match(seen[0] ?? '', new RegExp(`^Changuito sign-in\\nHost: sol\\.changuito\\.me\\nAddress: ${wallet.address}\\n`))
-    assert.equal(api.jar.has(USER_COOKIE), true)
+    const token = api.token()
+    assert.equal(typeof token, 'string')
+    assert.match(token ?? '', /^v2\./)
+
+    const login = traced.calls.find((call) => call.url.endsWith('/api/session/login'))
+    assert.ok(login)
+    assert.equal(login.headers.get(SESSION_TRANSPORT_HEADER), 'bearer')
+    assert.equal(login.headers.get('user-agent'), NATIVE_USER_AGENT)
+    assert.equal(login.headers.get('authorization'), null)
+    for (const call of traced.calls) {
+      const names = headerNames(call.headers)
+      assert.equal(names.includes('origin'), false, call.url)
+      assert.equal(names.some((name) => name.startsWith('sec-fetch-')), false, call.url)
+      assert.equal(names.includes('cookie'), false, call.url)
+    }
+    const proof = JSON.parse(login.body ?? '{}') as { walletProof: { message: string; signature: string } }
+    assert.equal(proof.walletProof.message, seen[0])
+    assert.equal(proof.walletProof.signature.length > 0, true)
+
     assert.equal(await api.current(), wallet.address)
+    const read = traced.calls.find((call) => call.url.endsWith('/api/session') && !call.url.includes('wallet'))
+    assert.equal(read?.headers.get('authorization'), `Bearer ${token}`)
 
     await api.logout()
-    assert.equal(api.jar.has(USER_COOKIE), false)
+    assert.equal(api.token(), null)
     assert.equal(await api.current(), null)
+
+    api.adopt(token)
+    await assert.rejects(
+      () => api.current(),
+      (err: unknown) => err instanceof SessionError && err.code === 'session_closed',
+    )
+    assert.equal(api.token(), null)
+    assert.match(messageForFailure(new SessionError('session_closed', 'session_closed'), 'es'), /venció/)
+    assert.match(messageForFailure(new SessionError('session_closed', 'session_closed'), 'en'), /expired/i)
   })
 
   it('rejects a signature that does not match the message', async () => {
@@ -47,40 +110,56 @@ describe('wallet sign-in', () => {
         }),
       (err: unknown) => err instanceof SessionError && err.code === 'proof_invalid',
     )
+    assert.equal(api.token(), null)
+  })
+
+  it('refuses a signature that is not 64 bytes', async () => {
+    const api = createSessionApi({ baseUrl: BASE, fetch: createMemorySessionFetch() })
+    const wallet = await createDevWallet()
+    await assert.rejects(
+      () => api.signIn({ address: wallet.address, signMessage: async () => new Uint8Array(32) }),
+      (err: unknown) => err instanceof SessionError && err.code === 'empty_signature',
+    )
   })
 
   it('refuses to replay a proof after the nonce is spent', async () => {
     const fetchImpl = createMemorySessionFetch()
     const wallet = await createDevWallet()
     let proof: { address: string; message: string; signature: string } | null = null
-    const original = fetchImpl
-    const spying: typeof fetchImpl = async (url, init) => {
+    const spying: FetchLike = async (url, init) => {
       if (url.endsWith('/api/session/login') && typeof init?.body === 'string') {
         proof = (JSON.parse(init.body) as { walletProof: typeof proof }).walletProof
       }
-      return original(url, init)
+      return fetchImpl(url, init)
     }
-    const spy = createSessionApi({ baseUrl: BASE, fetch: spying })
-    await spy.signIn({ address: wallet.address, signMessage: (message) => wallet.signMessage(message) })
+    const api = createSessionApi({ baseUrl: BASE, fetch: spying })
+    await api.signIn({ address: wallet.address, signMessage: (message) => wallet.signMessage(message) })
     assert.ok(proof)
     const again = await fetchImpl(`${BASE}/api/session/login`, {
       method: 'POST',
-      headers: { accept: 'application/json', 'content-type': 'application/json' },
+      headers: nativeSessionHeaders({ json: true, transport: true, token: null }),
       body: JSON.stringify({ walletProof: proof }),
     })
     assert.equal(again.status, 401)
   })
 
-  it('names the human check when the gate refuses the call', async () => {
-    const api = createSessionApi({
-      baseUrl: BASE,
-      fetch: createMemorySessionFetch({ humanGate: true }),
-    })
+  it('names a refusal and a rate limit', async () => {
     const wallet = await createDevWallet()
+    const refused = createSessionApi({ baseUrl: BASE, fetch: createMemorySessionFetch({ humanGate: true }) })
     await assert.rejects(
-      () => api.signIn({ address: wallet.address, signMessage: (message) => wallet.signMessage(message) }),
-      (err: unknown) => err instanceof SessionError && err.code === 'human_required',
+      () => refused.signIn({ address: wallet.address, signMessage: (message) => wallet.signMessage(message) }),
+      (err: unknown) => err instanceof SessionError && err.code === 'refused',
     )
+    assert.match(messageForFailure(new SessionError('refused', 'refused'), 'en'), /refused/i)
+    assert.match(messageForFailure(new SessionError('refused', 'refused'), 'es'), /rechazó/)
+
+    const limited = createSessionApi({ baseUrl: BASE, fetch: createMemorySessionFetch({ rateLimit: true }) })
+    await assert.rejects(
+      () => limited.signIn({ address: wallet.address, signMessage: (message) => wallet.signMessage(message) }),
+      (err: unknown) => err instanceof SessionError && err.code === 'rate_limited',
+    )
+    assert.match(messageForFailure(new SessionError('rate_limited', 'rate_limited'), 'es'), /minutos/)
+    assert.match(messageForFailure(new SessionError('rate_limited', 'rate_limited'), 'en'), /minutes/)
   })
 
   it('rejects an address the server would not accept', async () => {
@@ -105,47 +184,19 @@ describe('wallet sign-in', () => {
     )
   })
 
-  it('accepts a session token in the body when Set-Cookie is hidden', async () => {
+  it('stops when the login omits the bearer', async () => {
     const inner = createMemorySessionFetch()
-    const fetchImpl: typeof inner = async (url, init) => {
-      const response = await inner(url, init)
-      if (!url.endsWith('/api/session/login')) return response
-      const body = (await response.json()) as { address: string }
-      return new Response(JSON.stringify({ ...body, sessionToken: 'body-token' }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-    const api = createSessionApi({ baseUrl: BASE, fetch: fetchImpl })
-    const wallet = await createDevWallet()
-    await api.signIn({ address: wallet.address, signMessage: (message) => wallet.signMessage(message) })
-    assert.equal(api.jar.get(USER_COOKIE), 'body-token')
-  })
-
-  it('stops when neither a cookie nor a later session read confirms the login', async () => {
-    const fetchImpl = async (url: string) => {
-      if (url.endsWith('/api/session/wallet-challenge')) {
-        return new Response(JSON.stringify({ message: 'Changuito sign-in\nonly-a-test' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        })
-      }
-      if (url.endsWith('/api/session/login')) {
-        return new Response(JSON.stringify({ ok: true, address: 'ignored' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        })
-      }
-      return new Response(JSON.stringify({ address: null }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
+    const fetchImpl: FetchLike = async (url, init) => {
+      const headers = new Headers(init?.headers)
+      headers.set('origin', BASE)
+      return inner(url, { ...init, headers })
     }
     const api = createSessionApi({ baseUrl: BASE, fetch: fetchImpl })
     const wallet = await createDevWallet()
     await assert.rejects(
-      () => api.signIn({ address: wallet.address, signMessage: async () => new Uint8Array([1]) }),
-      (err: unknown) => err instanceof SessionError && (err.code === 'proof_invalid' || err.code === 'cookie_missing'),
+      () => api.signIn({ address: wallet.address, signMessage: (message) => wallet.signMessage(message) }),
+      (err: unknown) => err instanceof SessionError && err.code === 'token_missing',
     )
+    assert.equal(api.token(), null)
   })
 })

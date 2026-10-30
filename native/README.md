@@ -124,7 +124,7 @@ What to look at:
 
 1. The launcher says Changuito and the icon is the mascot on the sunflower background.
 2. The screen offers sign-in in Spanish or English, and follows the phone's light or dark theme. The theme and language buttons on the screen switch both.
-3. Sign-in opens the wallet on the phone and asks it to authorize **devnet**, then to sign a short message. After that, the screen shows the shortened address, or a `.skr` name when the wallet label is one, and a sign-out button.
+3. Sign-in opens the wallet on the phone and asks it to authorize **devnet**, then to sign a short message. The app tells the site it is `ChanguitoSeeker` and keeps the returned session in the phone's secure storage. It is cleared when you tap Sign out. It is not written to a log. After that, the screen shows the shortened address, or a `.skr` name when the wallet label is one, and a sign-out button. Opening the app again asks the site whether that session is still valid.
 4. Cancelling the wallet sheet leaves you on the sign-in screen with a sentence that says the sign-in was cancelled.
 
 A release build talks to https://sol.changuito.me. There is no phone wallet in this repository's build environment, so the wallet sheet itself has to be tried on a Seeker or an emulator that has a wallet app installed (the Solana Mobile fake wallet is enough for the sheet).

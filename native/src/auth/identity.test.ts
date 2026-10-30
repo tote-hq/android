@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import { describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { APP_IDENTITY, AUTHORIZED_CHAIN, isRelativeIdentityIcon } from './identity.ts'
+import { APP_IDENTITY, AUTHORIZED_CHAIN, BLOCKED_APP_USER_AGENT, NATIVE_USER_AGENT, isRelativeIdentityIcon } from './identity.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -25,6 +25,8 @@ describe('wallet identity', () => {
     assert.equal(isRelativeIdentityIcon(APP_IDENTITY.icon), true)
     assert.equal(APP_IDENTITY.uri, 'https://sol.changuito.me')
     assert.equal(APP_IDENTITY.name, 'Changuito')
+    assert.equal(NATIVE_USER_AGENT, 'ChanguitoSeeker/2.0.0')
+    assert.equal(BLOCKED_APP_USER_AGENT.test(NATIVE_USER_AGENT), false)
     assert.equal(isRelativeIdentityIcon('/icons/icon-512.png'), false)
     assert.equal(isRelativeIdentityIcon('https://sol.changuito.me/icons/icon-512.png'), false)
   })

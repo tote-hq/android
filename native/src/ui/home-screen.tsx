@@ -18,7 +18,7 @@ import { copy, deviceLanguage, type Lang } from '../auth/i18n.ts'
 import { API_ORIGIN } from '../auth/identity.ts'
 import { createMemorySessionFetch } from '../auth/memory-session.ts'
 import { messageForFailure, sessionErrorFromUnknown } from '../auth/messages.ts'
-import { createSessionApi, type SessionApi } from '../auth/session-client.ts'
+import { SessionError, createSessionApi, type SessionApi, type SessionErrorCode } from '../auth/session-client.ts'
 import { themes, type ThemeName } from '../auth/theme.ts'
 import { ShopScreen } from './shop-screen.tsx'
 
@@ -70,7 +70,7 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
   const [address, setAddress] = useState<string | null>(null)
   const [label, setLabel] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<SessionErrorCode | null>(null)
   const devWalletRef = useRef<Awaited<ReturnType<typeof createDevWallet>> | null>(null)
 
   const themeName: ThemeName = themeChoice === 'system' ? (system === 'dark' ? 'dark' : 'light') : themeChoice
@@ -125,7 +125,7 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
 
   async function onSignIn(): Promise<void> {
     if (busy) return
-    setError(null)
+    setErrorCode(null)
     setPhase('connecting')
     try {
       const account = mock ? await connectMock() : await wallet.connect()
@@ -146,7 +146,7 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
       setLabel(account.label ?? null)
       setAddress(signed.address)
     } catch (err) {
-      setError(messageForFailure(sessionErrorFromUnknown(err), lang))
+      setErrorCode(sessionErrorFromUnknown(err).code)
       if (!mock) await wallet.disconnect().catch(() => undefined)
     } finally {
       setPhase(null)
@@ -171,12 +171,12 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
   async function onSignOut(): Promise<void> {
     if (busy) return
     setPhase('out')
-    setError(null)
+    setErrorCode(null)
     try {
       await session.logout()
     } catch (err) {
       const wrapped = sessionErrorFromUnknown(err)
-      if (wrapped.code !== 'session_closed') setError(messageForFailure(wrapped, lang))
+      if (wrapped.code !== 'session_closed') setErrorCode(wrapped.code)
     } finally {
       await writeToken(null)
       if (!mock) await wallet.disconnect().catch(() => undefined)
@@ -199,6 +199,7 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
   }
 
   const shown = address ? walletTitle(address, label) : null
+  const errorText = errorCode ? messageForFailure(new SessionError(errorCode, errorCode), lang) : null
   const status =
     phase === 'connecting'
       ? text.statusConnecting
@@ -325,9 +326,9 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
           {status}
         </Text>
       ) : null}
-      {error ? (
+      {errorText ? (
         <Text accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>
-          {error}
+          {errorText}
         </Text>
       ) : null}
 

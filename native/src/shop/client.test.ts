@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { messageForFailure } from '../auth/messages.ts'
-import { SessionError, errorFromResponse } from '../auth/session-client.ts'
+import { errorFromResponse } from '../auth/session-client.ts'
 import { ShopError, payForCart, sendChat, shopHeaders } from './client.ts'
 import type { Cart } from './protocol.ts'
 
@@ -119,7 +119,8 @@ describe('shop calls', () => {
     assert.equal(limiter.code, 'limiter')
     assert.equal(missing.code, 'unconfigured')
     assert.match(messageForFailure(limiter, 'es'), /cupo/)
-    assert.match(messageForFailure(new SessionError('limiter', 'limiter'), 'en'), /quota/)
+    assert.match(messageForFailure(limiter, 'en'), /quota/)
+    assert.notEqual(messageForFailure(limiter, 'es'), messageForFailure(limiter, 'en'))
     assert.notEqual(messageForFailure(limiter, 'en'), messageForFailure(missing, 'en'))
   })
 })

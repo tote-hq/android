@@ -15,6 +15,13 @@ describe('copy', () => {
     }
   })
 
+  it('uses tú in Spanish, not voseo', () => {
+    const forbidden = /\b(ingresá|confirmá|podés|abrila|probá|esperá|volvé|revisá|intentá|pedí|escribí|necesitás|contale|salí)\b/i
+    for (const value of Object.values(copy.es)) {
+      assert.doesNotMatch(value, forbidden, value)
+    }
+  })
+
   it('follows the device language and falls back to Spanish', () => {
     assert.equal(deviceLanguage('en'), 'en')
     assert.equal(deviceLanguage('es'), 'es')

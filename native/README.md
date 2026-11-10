@@ -119,14 +119,14 @@ cd android
 
 Pass the keystore variables from the previous section in the same Terminal window. Do not commit the keystore or the passwords.
 
-An emulator test build also needs the x86_64 libraries. That is a debug APK, not the store upload:
+An emulator test build needs an embedded JavaScript bundle and the x86_64 libraries. `assembleDebug` is a development client: it opens the Dev Launcher and waits for Metro. Use a release build without the store key instead. It embeds the bundle, stays signed with the debug certificate, and includes arm64 and x86_64:
 
 ```bash
 cd android
-./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a,x86_64
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
 ```
 
-The debug APK is signed with the machine debug certificate. Uninstall the store copy before installing it. The store update has to be the release APK signed with the key above.
+Do not export the release keystore variables for that command. Uninstall the store copy before installing it. The store update is a separate APK, signed with the key above, and arm64 only.
 
 ## 4. Install it on a phone or emulator
 

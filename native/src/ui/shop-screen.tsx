@@ -4,7 +4,7 @@ import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, Vie
 import { copy, type Lang } from '../auth/i18n.ts'
 import { API_ORIGIN } from '../auth/identity.ts'
 import { type ThemeColors } from '../auth/theme.ts'
-import { payForCart, sendChat, ShopError } from '../shop/client.ts'
+import { payForCart, sendChat, ShopError, type ShopErrorCode } from '../shop/client.ts'
 import {
   appendUser,
   emptyTurn,
@@ -52,26 +52,33 @@ export function ShopScreen({
   }
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState<'chat' | 'pay' | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [paid, setPaid] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<ShopErrorCode | null>(null)
+  const [paidAmount, setPaidAmount] = useState<string | null>(null)
   const sessionId = useMemo(() => newSessionId(), [])
 
-  function shopMessage(err: unknown): string {
-    if (err instanceof ShopError) {
-      if (err.code === 'refused') return text.shopRefused
-      if (err.code === 'unauthorized') return text.shopUnauthorized
-      if (err.code === 'postal') return text.needPostal
-      if (err.code === 'network') return text.errorNetwork
-    }
-    return text.shopFailed
+  function remember(err: unknown): void {
+    setErrorCode(err instanceof ShopError ? err.code : 'server')
   }
+
+  const errorText =
+    errorCode === 'refused'
+      ? text.shopRefused
+      : errorCode === 'unauthorized'
+        ? text.shopUnauthorized
+        : errorCode === 'postal'
+          ? text.needPostal
+          : errorCode === 'network'
+            ? text.errorNetwork
+            : errorCode
+              ? text.shopFailed
+              : null
 
   async function onSend(): Promise<void> {
     const message = draft.trim()
     if (!message || busy) return
     setDraft('')
-    setError(null)
-    setPaid(null)
+    setErrorCode(null)
+    setPaidAmount(null)
     updateTurn((current) => appendUser(current, message))
     setBusy('chat')
     try {
@@ -85,7 +92,7 @@ export function ShopScreen({
         onEvent: (event) => updateTurn((current) => reduceEvent(current, event)),
       })
     } catch (err) {
-      setError(shopMessage(err))
+      remember(err)
     } finally {
       setBusy(null)
     }
@@ -93,8 +100,8 @@ export function ShopScreen({
 
   async function onPay(cart: Cart, handoffUrl?: string): Promise<void> {
     if (busy) return
-    setError(null)
-    setPaid(null)
+    setErrorCode(null)
+    setPaidAmount(null)
     setBusy('pay')
     try {
       const result = await payForCart({
@@ -105,9 +112,9 @@ export function ShopScreen({
         snapshot: turnRef.current.snapshot,
         signTransaction,
       })
-      setPaid(`${text.paid} ${result.amountDisplay} USDC`)
+      setPaidAmount(result.amountDisplay)
     } catch (err) {
-      setError(shopMessage(err))
+      remember(err)
     } finally {
       setBusy(null)
     }
@@ -133,14 +140,14 @@ export function ShopScreen({
           </Text>
         ) : null}
       </ScrollView>
-      {paid ? (
+      {paidAmount ? (
         <Text accessibilityLiveRegion="polite" style={[styles.notice, { color: colors.text }]}>
-          {paid}
+          {text.paid} {paidAmount} USDC
         </Text>
       ) : null}
-      {error ? (
+      {errorText ? (
         <Text accessibilityLiveRegion="polite" accessibilityRole="alert" style={[styles.notice, { color: colors.error }]}>
-          {error}
+          {errorText}
         </Text>
       ) : null}
       <View style={styles.composer}>

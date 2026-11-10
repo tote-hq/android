@@ -12,6 +12,7 @@ export type SessionErrorCode =
   | 'session_closed'
   | 'network'
   | 'proof_invalid'
+  | 'limiter'
   | 'unconfigured'
   | 'invalid_address'
   | 'empty_signature'
@@ -83,7 +84,8 @@ export function errorFromResponse(status: number, json: JsonBody, text: string, 
   if (status === 403 || error === 'solo_humanos' || /solo humanos/i.test(text)) {
     return new SessionError('refused', 'refused')
   }
-  if (status === 503 || error === 'session_unconfigured' || error === 'session_unavailable' || error === 'limiter_unavailable') {
+  if (error === 'limiter_unavailable') return new SessionError('limiter', 'limiter')
+  if (status === 503 || error === 'session_unconfigured' || error === 'session_unavailable') {
     return new SessionError('unconfigured', 'unconfigured')
   }
   if (status === 401) {

@@ -2,7 +2,7 @@
   "name": "changuito-native",
   "private": true,
   "version": "2.0.0",
-  "description": "Native Changuito app for the Solana dApp Store. Wallet sign-in only.",
+  "description": "Native Changuito app for the Solana dApp Store. Phone-wallet sign-in, chat, cart, and devnet USDC escrow.",
   "main": "./index.js",
   "scripts": {
     "start": "expo start --dev-client",
@@ -11,7 +11,8 @@
     "build:apk": "expo prebuild -p android --no-install && cd android && ./gradlew assembleRelease",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test --test-reporter spec src/auth/*.test.ts"
+    "test": "node --experimental-strip-types --test --test-reporter spec src/auth/*.test.ts src/shop/*.test.ts",
+    "build:debug-apk": "cd android && ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a,x86_64"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

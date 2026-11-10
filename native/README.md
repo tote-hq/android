@@ -108,7 +108,25 @@ Without those four variables, `assembleRelease` still builds, but the APK is uns
 
 If you used Way A, point that command at the APK path the EAS command printed.
 
-The check should succeed and the certificate should be the release key (the name you set when the keystore was created), not `CN=Android Debug`. Write down the SHA-256. The store portal shows that fingerprint for the release.
+The check should succeed and the certificate should be the release key, not `CN=Android Debug`. The certificate SHA-256 must be `db95a88bcda94480c3a84060b6a8f99ca91a8108596d599f1d5be62f5dc01e20`, the same key that signed version 1.0.3. Write that fingerprint down. The store portal shows it for the release.
+
+A release APK for a Seeker can be built for arm64 only, which is what that phone runs:
+
+```bash
+cd android
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+```
+
+Pass the keystore variables from the previous section in the same Terminal window. Do not commit the keystore or the passwords.
+
+An emulator test build also needs the x86_64 libraries. That is a debug APK, not the store upload:
+
+```bash
+cd android
+./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a,x86_64
+```
+
+The debug APK is signed with the machine debug certificate. Uninstall the store copy before installing it. The store update has to be the release APK signed with the key above.
 
 ## 4. Install it on a phone or emulator
 
@@ -124,8 +142,10 @@ What to look at:
 
 1. The launcher says Changuito and the icon is the mascot on the sunflower background.
 2. The screen offers sign-in in Spanish or English, and follows the phone's light or dark theme. The theme and language buttons on the screen switch both.
-3. Sign-in opens the wallet on the phone and asks it to authorize **devnet**, then to sign a short message. The app tells the site it is `ChanguitoSeeker` and keeps the returned session in the phone's secure storage. It is cleared when you tap Sign out. It is not written to a log. After that, the screen shows the shortened address, or a `.skr` name when the wallet label is one, and a sign-out button. Opening the app again asks the site whether that session is still valid.
-4. Cancelling the wallet sheet leaves you on the sign-in screen with a sentence that says the sign-in was cancelled.
+3. Sign-in opens the wallet on the phone and asks it to authorize **devnet**, then to sign a short message. The app tells the site it is `ChanguitoSeeker` and keeps the returned session in the phone's secure storage. It is cleared when you tap Sign out. It is not written to a log. After that you can ask for a shop. Product options and the cart come back in the thread. Pay with USDC asks the wallet to sign the escrow transaction. Privacy, terms, and delete-account open in the browser.
+4. Cancelling the wallet sheet leaves you on the sign-in screen with a sentence that says the sign-in was cancelled. If the site cannot check its quota, the screen says so and does not pretend the account signed in.
+
+The wallet can show "Verification failed" until `https://sol.changuito.me/.well-known/assetlinks.json` names this package and the release certificate. That file is served by the site, not by this APK.
 
 A release build talks to https://sol.changuito.me. There is no phone wallet in this repository's build environment, so the wallet sheet itself has to be tried on a Seeker or an emulator that has a wallet app installed (the Solana Mobile fake wallet is enough for the sheet).
 

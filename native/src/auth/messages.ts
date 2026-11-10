@@ -12,6 +12,7 @@ const SESSION_KEY: Record<SessionErrorCode, CopyKey> = {
   session_closed: 'errorClosed',
   network: 'errorNetwork',
   proof_invalid: 'errorProof',
+  limiter: 'errorLimiter',
   unconfigured: 'errorUnconfigured',
   invalid_address: 'errorInvalidAddress',
   empty_signature: 'errorEmptySignature',

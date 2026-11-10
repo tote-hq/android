@@ -20,6 +20,7 @@ import { createMemorySessionFetch } from '../auth/memory-session.ts'
 import { messageForFailure, sessionErrorFromUnknown } from '../auth/messages.ts'
 import { createSessionApi, type SessionApi } from '../auth/session-client.ts'
 import { themes, type ThemeName } from '../auth/theme.ts'
+import { ShopScreen } from './shop-screen.tsx'
 
 /** Secure-store key for the bearer. Never AsyncStorage, never a log. */
 const TOKEN_KEY = 'changuito.session.token'
@@ -34,6 +35,7 @@ type PhoneAccount = { address: string; label?: string | null }
 type PhoneWallet = {
   connect: () => Promise<PhoneAccount>
   signMessage: (message: string) => Promise<Uint8Array>
+  signTransaction: (txBase64: string) => Promise<string>
   disconnect: () => Promise<void>
 }
 
@@ -210,6 +212,61 @@ export function HomeScreen({ wallet }: { wallet: PhoneWallet }) {
               ? text.disconnecting
               : null
 
+  if (address && session.token()) {
+    return (
+      <View
+        style={[
+          styles.signedIn,
+          { backgroundColor: colors.background, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 12 },
+        ]}
+      >
+        <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
+          {text.appName}
+        </Text>
+        <Text style={[styles.lead, { color: colors.muted }]}>
+          {text.accountHeading}: {shown?.title}
+        </Text>
+        <ShopScreen colors={colors} lang={lang} signTransaction={wallet.signTransaction} token={session.token() ?? ''} />
+        <ActionButton
+          accessibilityLabel={text.disconnect}
+          background={colors.coral}
+          busy={busy}
+          color={colors.onCoral}
+          disabled={!ready || busy}
+          focus={colors.focus}
+          label={busy ? text.disconnecting : text.disconnect}
+          onPress={() => void onSignOut()}
+        />
+        <View style={styles.row}>
+          <ActionButton
+            accessibilityLabel={lang === 'es' ? text.languageToEnglish : text.languageToSpanish}
+            background={colors.card}
+            busy={busy}
+            color={colors.text}
+            disabled={busy}
+            fill
+            focus={colors.focus}
+            label={lang === 'es' ? 'EN' : 'ES'}
+            onPress={toggleLanguage}
+            outline={colors.border}
+          />
+          <ActionButton
+            accessibilityLabel={themeName === 'dark' ? text.themeLight : text.themeDark}
+            background={colors.card}
+            busy={busy}
+            color={colors.text}
+            disabled={busy}
+            fill
+            focus={colors.focus}
+            label={themeName === 'dark' ? text.themeLight : text.themeDark}
+            onPress={toggleTheme}
+            outline={colors.border}
+          />
+        </View>
+      </View>
+    )
+  }
+
   return (
     <ScrollView
       contentContainerStyle={[
@@ -350,6 +407,11 @@ function ActionButton({
 }
 
 const styles = StyleSheet.create({
+  signedIn: {
+    flex: 1,
+    gap: 12,
+    paddingHorizontal: 16,
+  },
   content: {
     flexGrow: 1,
     paddingHorizontal: 16,

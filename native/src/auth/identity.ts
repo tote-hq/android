@@ -20,7 +20,7 @@ export const APP_IDENTITY = {
   icon: 'icons/icon-512.png',
 } as const
 
-export const APP_VERSION = '2.0.0'
+export const APP_VERSION = '2.0.1'
 
 /** Sent on every session call. A browser page cannot use this name, and it is not on the site's crawler list. */
 export const NATIVE_USER_AGENT = `ChanguitoSeeker/${APP_VERSION}`

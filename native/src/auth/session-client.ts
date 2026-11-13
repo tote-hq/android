@@ -1,6 +1,7 @@
 import { bytesToBase64 } from './bytes.ts'
 import { API_ORIGIN, NATIVE_USER_AGENT, SESSION_TRANSPORT_HEADER } from './identity.ts'
 import { isSolanaAddress } from './base58.ts'
+import { extractEd25519Signature, verifyEd25519Signature } from './signed-payload.ts'
 
 export type SessionErrorCode =
   | 'cancelled'
@@ -31,7 +32,11 @@ export class SessionError extends Error {
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
 
-export type SignMessage = (message: string) => Promise<Uint8Array>
+/**
+ * Whatever `signMessages` handed back: raw bytes, base64, or a one-element
+ * list of either. The session client extracts the signature; callers do not.
+ */
+export type SignMessage = (message: string) => Promise<unknown>
 
 export type SessionApi = {
   signIn(input: { address: string; signMessage: SignMessage }): Promise<{ address: string }>
@@ -152,14 +157,20 @@ export function createSessionApi(options?: { baseUrl?: string; fetch?: FetchLike
         throw new SessionError('unknown', 'challenge_missing')
       }
 
-      let signature: Uint8Array
+      let presented: unknown
       try {
-        signature = await signMessage(message)
+        presented = await signMessage(message)
       } catch (err) {
         if (err instanceof SessionError) throw err
         throw new SessionError('unknown', 'sign_failed')
       }
-      if (signature.length !== 64) throw new SessionError('empty_signature', 'empty_signature')
+      const signature = extractEd25519Signature(message, presented)
+      if (!signature) throw new SessionError('empty_signature', 'empty_signature')
+      // A payload that only looks like a signature is not posted. The login
+      // route checks the same proof again; this keeps a bad one off the wire.
+      if (!verifyEd25519Signature(address, message, signature)) {
+        throw new SessionError('proof_invalid', 'proof_invalid')
+      }
 
       const login = await send('/api/session/login', 'login', {
         walletProof: {

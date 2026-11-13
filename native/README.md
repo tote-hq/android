@@ -8,8 +8,8 @@ The WebShell project in `android/` is a separate app and is not changed by anyth
 |---|---|
 | Launcher name | Changuito |
 | Package | `me.changuito.sol` |
-| Version code | `5` |
-| Version name | `2.0.0` |
+| Version code | `6` |
+| Version name | `2.0.1` |
 | Chain the wallet is asked to authorize | Solana devnet |
 | Release key alias | `changuito` |
 

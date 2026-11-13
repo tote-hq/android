@@ -24,7 +24,7 @@ describe('shop calls', () => {
     assert.equal(headers.get('authorization'), `Bearer ${TOKEN}`)
     assert.equal(headers.get('origin'), null)
     assert.equal(headers.get('sec-fetch-site'), null)
-    assert.equal(headers.get('user-agent'), 'ChanguitoSeeker/2.0.0')
+    assert.equal(headers.get('user-agent'), 'ChanguitoSeeker/2.0.1')
   })
 
   it('reads a chat stream and surfaces a browser-check refusal', async () => {

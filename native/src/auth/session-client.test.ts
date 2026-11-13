@@ -30,7 +30,7 @@ function headerNames(headers: Headers): string[] {
 
 describe('native session headers', () => {
   it('names the app and does not look like a browser or a blocked agent', () => {
-    assert.equal(NATIVE_USER_AGENT, 'ChanguitoSeeker/2.0.0')
+    assert.equal(NATIVE_USER_AGENT, 'ChanguitoSeeker/2.0.1')
     assert.equal(BLOCKED_APP_USER_AGENT.test(NATIVE_USER_AGENT), false)
     const headers = nativeSessionHeaders({ json: true, transport: true, token: null })
     assert.equal(headers.get('user-agent'), NATIVE_USER_AGENT)

@@ -3,14 +3,14 @@
     "name": "Changuito",
     "slug": "changuito",
     "scheme": "changuito",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "backgroundColor": "#FAFAF7",
     "android": {
       "package": "me.changuito.sol",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4B942"

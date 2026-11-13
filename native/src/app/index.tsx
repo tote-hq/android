@@ -13,6 +13,8 @@ export default function Index() {
           return { address: account.address.toString(), label: account.label ?? null }
         },
         signMessage: async (message) => {
+          // The kit returns the signed payload, which may be the message with
+          // the signature appended. Sign-in splits that before login.
           const signed = await wallet.signMessages(new TextEncoder().encode(message))
           return signed
         },

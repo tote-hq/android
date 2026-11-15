@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "Changuito",
+    "slug": "changuito",
+    "scheme": "changuito",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#FAFAF7",
+    "android": {
+      "package": "me.changuito.sol",
+      "versionCode": 5,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F4B942"
+      },
+      "backgroundColor": "#FAFAF7",
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-localization",
+      [
+        "expo-dev-client",
+        {
+          "showMenuAtLaunch": false,
+          "skipOnboarding": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 28
+          }
+        }
+      ],
+      "./plugins/withReleaseSigning"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

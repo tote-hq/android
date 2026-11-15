@@ -8,10 +8,12 @@ The WebShell project in `android/` is a separate app and is not changed by anyth
 |---|---|
 | Launcher name | Changuito |
 | Package | `me.changuito.sol` |
-| Version code | `6` |
-| Version name | `2.0.1` |
+| Version code | `7` |
+| Version name | `2.0.2` |
 | Chain the wallet is asked to authorize | Solana devnet |
 | Release key alias | `changuito` |
+
+The release APK keeps `INTERNET` and `ACCESS_NETWORK_STATE`. Overlay, storage, biometric, fingerprint, and vibrate permissions from Expo and library defaults are blocked in `app.json` (`android.blockedPermissions`).
 
 The release keystore is not in git. The person who published the current listing keeps that file and its two passwords. Losing the file means this package can never be updated on the store.
 

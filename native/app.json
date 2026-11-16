@@ -3,14 +3,22 @@
     "name": "Changuito",
     "slug": "changuito",
     "scheme": "changuito",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "backgroundColor": "#FAFAF7",
     "android": {
       "package": "me.changuito.sol",
-      "versionCode": 6,
+      "versionCode": 7,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.VIBRATE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F4B942"
